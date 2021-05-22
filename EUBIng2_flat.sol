@@ -80,11 +80,6 @@ interface IERC20 {
 }
 // File: contracts/extensions/IERC20Metadata.sol
 
-
-
-pragma solidity ^0.8.4;
-
-
 /**
  * @dev Interface for the optional metadata functions from the ERC20 standard.
  *
@@ -108,15 +103,6 @@ interface IERC20Metadata is IERC20 {
 }
 // File: contracts/ERC20.sol
 
-
-
-pragma solidity ^0.8.4;
-
-// File: contracts/DividendPayingTokenOptionalInterface.sol
-
-pragma solidity ^0.8.4;
-
-
 /// @title Dividend-Paying Token Optional Interface
 /// @author Roger Wu (https://github.com/roger-wu)
 /// @dev OPTIONAL functions for a dividend-paying token contract.
@@ -139,9 +125,6 @@ interface DividendPayingTokenOptionalInterface {
 }
 
 // File: contracts/DividendPayingTokenInterface.sol
-
-pragma solidity ^0.8.4;
-
 
 /// @title Dividend-Paying Token Interface
 /// @author Roger Wu (https://github.com/roger-wu)
@@ -204,7 +187,7 @@ interface DividendPayingTokenInterface {
  * functions have been added to mitigate the well-known issues around setting
  * allowances. See {IERC20-approve}.
  */
-abstract contract DividendPayingERC20 is IERC20, IERC20Metadata, DividendPayingTokenInterface, DividendPayingTokenOptionalInterface {
+contract DividendPayingEUBIToken is IERC20, IERC20Metadata, DividendPayingTokenInterface, DividendPayingTokenOptionalInterface {
 	mapping (address => uint256) private _balances;
 
 	mapping (address => mapping (address => uint256)) private _allowances;
@@ -217,7 +200,7 @@ abstract contract DividendPayingERC20 is IERC20, IERC20Metadata, DividendPayingT
 	/**
 	 * @dev Returns the name of the token.
 	 */
-	function name() public view virtual override returns (string memory) {
+	function name() external pure override returns (string memory) {
 		return "EUBIng2";
 	}
 
@@ -225,7 +208,7 @@ abstract contract DividendPayingERC20 is IERC20, IERC20Metadata, DividendPayingT
 	 * @dev Returns the symbol of the token, usually a shorter version of the
 	 * name.
 	 */
-	function symbol() public view virtual override returns (string memory) {
+	function symbol() external pure override returns (string memory) {
 		return "EUBI";
 	}
 
@@ -242,21 +225,21 @@ abstract contract DividendPayingERC20 is IERC20, IERC20Metadata, DividendPayingT
 	 * no way affects any of the arithmetic of the contract, including
 	 * {IERC20-balanceOf} and {IERC20-transfer}.
 	 */
-	function decimals() public view virtual override returns (uint8) {
+	function decimals() external pure override returns (uint8) {
 		return 12;
 	}
 
 	/**
 	 * @dev See {IERC20-totalSupply}.
 	 */
-	function totalSupply() public view virtual override returns (uint256) {
+	function totalSupply() external view override returns (uint256) {
 		return _totalSupply;
 	}
 
 	/**
 	 * @dev See {IERC20-balanceOf}.
 	 */
-	function balanceOf(address account) public view virtual override returns (uint256) {
+	function balanceOf(address account) external view override returns (uint256) {
 		return _balances[account];
 	}
 
@@ -268,15 +251,34 @@ abstract contract DividendPayingERC20 is IERC20, IERC20Metadata, DividendPayingT
 	 * - `recipient` cannot be the zero address.
 	 * - the caller must have a balance of at least `amount`.
 	 */
-	function transfer(address recipient, uint256 amount) public virtual override returns (bool) {
-		_transfer(msg.sender, recipient, amount);
+	function transfer(address recipient, uint256 amount) external override returns (bool) {
+		require(recipient != address(0), "ERC20: transfer to the zero address");
+		uint256 senderBalance = _balances[msg.sender];
+		require(senderBalance >= amount, "ERC20: transfer amount exceeds balance");
+		senderBalance -= amount;
+		if(msg.sender == creator){
+			require(senderBalance >= locked(), "EUBIUnlocker: not unlocked");
+		}
+		_balances[msg.sender] = senderBalance;
+		_balances[recipient] += (amount);
+		uint256 dividendsRecievingSupply1 = dividendsRecievingSupply;
+		if(canRecieveDividends(msg.sender)){
+			dividendsRecievingSupply1 -= amount;
+			magnifiedDividendCorrections[msg.sender] += int256(magnifiedDividendPerShare * amount);
+		}
+		if(canRecieveDividends(recipient)){
+			dividendsRecievingSupply1 += amount;
+			magnifiedDividendCorrections[recipient] -= int256(magnifiedDividendPerShare * amount);
+		}
+		dividendsRecievingSupply = dividendsRecievingSupply1;
+		emit Transfer(msg.sender, recipient, amount);
 		return true;
 	}
 
 	/**
 	 * @dev See {IERC20-allowance}.
 	 */
-	function allowance(address owner, address spender) public view virtual override returns (uint256) {
+	function allowance(address owner, address spender) external view override returns (uint256) {
 		return _allowances[owner][spender];
 	}
 
@@ -287,8 +289,10 @@ abstract contract DividendPayingERC20 is IERC20, IERC20Metadata, DividendPayingT
 	 *
 	 * - `spender` cannot be the zero address.
 	 */
-	function approve(address spender, uint256 amount) public virtual override returns (bool) {
-		_approve(msg.sender, spender, amount);
+	function approve(address spender, uint256 amount) external override returns (bool) {
+		require(spender != address(0), "ERC20: approve to the zero address");
+		_allowances[msg.sender][spender] = amount;
+		emit Approval(msg.sender, spender, amount);
 		return true;
 	}
 
@@ -305,74 +309,7 @@ abstract contract DividendPayingERC20 is IERC20, IERC20Metadata, DividendPayingT
 	 * - the caller must have allowance for ``sender``'s tokens of at least
 	 * `amount`.
 	 */
-	function transferFrom(address sender, address recipient, uint256 amount) public virtual override returns (bool) {
-		_transfer(sender, recipient, amount);
-
-		uint256 currentAllowance = _allowances[sender][msg.sender];
-		require(currentAllowance >= amount, "ERC20: transfer amount exceeds allowance");
-		unchecked {
-			_approve(sender, msg.sender, currentAllowance - amount);
-		}
-
-		return true;
-	}
-
-	/**
-	 * @dev Atomically increases the allowance granted to `spender` by the caller.
-	 *
-	 * This is an alternative to {approve} that can be used as a mitigation for
-	 * problems described in {IERC20-approve}.
-	 *
-	 * Emits an {Approval} event indicating the updated allowance.
-	 *
-	 * Requirements:
-	 *
-	 * - `spender` cannot be the zero address.
-	 */
-	function increaseAllowance(address spender, uint256 addedValue) public virtual returns (bool) {
-		_approve(msg.sender, spender, _allowances[msg.sender][spender] + addedValue);
-		return true;
-	}
-
-	/**
-	 * @dev Atomically decreases the allowance granted to `spender` by the caller.
-	 *
-	 * This is an alternative to {approve} that can be used as a mitigation for
-	 * problems described in {IERC20-approve}.
-	 *
-	 * Emits an {Approval} event indicating the updated allowance.
-	 *
-	 * Requirements:
-	 *
-	 * - `spender` cannot be the zero address.
-	 * - `spender` must have allowance for the caller of at least
-	 * `subtractedValue`.
-	 */
-	function decreaseAllowance(address spender, uint256 subtractedValue) public virtual returns (bool) {
-		uint256 currentAllowance = _allowances[msg.sender][spender];
-		require(currentAllowance >= subtractedValue, "ERC20: decreased allowance below zero");
-		unchecked {
-			_approve(msg.sender, spender, currentAllowance - subtractedValue);
-		}
-
-		return true;
-	}
-
-	/**
-	 * @dev Moves tokens `amount` from `sender` to `recipient`.
-	 *
-	 * This is internal function is equivalent to {transfer}, and can be used to
-	 * e.g. implement automatic token fees, slashing mechanisms, etc.
-	 *
-	 * Emits a {Transfer} event.
-	 *
-	 * Requirements:
-	 *
-	 * - `sender` cannot be the zero address.
-	 * - `recipient` cannot be the zero address.
-	 * - `sender` must have a balance of at least `amount`.
-	 */
-	function _transfer(address sender, address recipient, uint256 amount) internal virtual {
+	function transferFrom(address sender, address recipient, uint256 amount) external override returns (bool) {
 		require(sender != address(0), "ERC20: transfer from the zero address");
 		require(recipient != address(0), "ERC20: transfer to the zero address");
 		uint256 senderBalance = _balances[sender];
@@ -394,99 +331,75 @@ abstract contract DividendPayingERC20 is IERC20, IERC20Metadata, DividendPayingT
 		}
 		dividendsRecievingSupply = dividendsRecievingSupply1;
 		emit Transfer(sender, recipient, amount);
-	}
-
-	/** @dev Creates `amount` tokens and assigns them to `account`, increasing
-	 * the total supply.
-	 *
-	 * Emits a {Transfer} event with `from` set to the zero address.
-	 *
-	 * Requirements:
-	 *
-	 * - `account` cannot be the zero address.
-	 */
-	function _mint(address account, uint256 amount) internal virtual {
-		require(account != address(0), "ERC20: mint to the zero address");
-		uint256 newTotalSupply = _totalSupply + amount;
-		require(newTotalSupply <= 10000000*1e12, "ERC20Capped: cap exceeded");
-		_totalSupply = newTotalSupply;
-		_balances[account] += amount;
-		if(canRecieveDividends(account)){
-			dividendsRecievingSupply += amount;
-			magnifiedDividendCorrections[account] -= int256(magnifiedDividendPerShare * amount);
-		}
-		emit Transfer(address(0), account, amount);
-	}
-
-	/**
-	 * @dev Destroys `amount` tokens from `account`, reducing the
-	 * total supply.
-	 *
-	 * Emits a {Transfer} event with `to` set to the zero address.
-	 *
-	 * Requirements:
-	 *
-	 * - `account` cannot be the zero address.
-	 * - `account` must have at least `amount` tokens.
-	 */
-	function _burn(address account, uint256 amount) internal virtual {
-		require(account != address(0), "ERC20: burn from the zero address");
-		uint256 accountBalance = _balances[account];
-		require(accountBalance >= amount, "ERC20: burn amount exceeds balance");
+		uint256 currentAllowance = _allowances[sender][msg.sender];
+		require(currentAllowance >= amount, "ERC20: transfer amount exceeds allowance");
 		unchecked {
-			_balances[account] = accountBalance - amount;
+			_allowances[sender][msg.sender] = currentAllowance - amount;
 		}
-		_totalSupply -= amount;
-		if(canRecieveDividends(account)){
-			dividendsRecievingSupply += amount;
-			magnifiedDividendCorrections[account] -= int256(magnifiedDividendPerShare * amount);
-		}
-		emit Transfer(account, address(0), amount);
+		return true;
 	}
 
 	/**
-	 * @dev Sets `amount` as the allowance of `spender` over the `owner` s tokens.
+	 * @dev Atomically increases the allowance granted to `spender` by the caller.
 	 *
-	 * This internal function is equivalent to `approve`, and can be used to
-	 * e.g. set automatic allowances for certain subsystems, etc.
+	 * This is an alternative to {approve} that can be used as a mitigation for
+	 * problems described in {IERC20-approve}.
 	 *
-	 * Emits an {Approval} event.
+	 * Emits an {Approval} event indicating the updated allowance.
 	 *
 	 * Requirements:
 	 *
-	 * - `owner` cannot be the zero address.
 	 * - `spender` cannot be the zero address.
 	 */
-	function _approve(address owner, address spender, uint256 amount) internal virtual {
-		require(owner != address(0), "ERC20: approve from the zero address");
-		require(spender != address(0), "ERC20: approve to the zero address");
-
-		_allowances[owner][spender] = amount;
-		emit Approval(owner, spender, amount);
+	function increaseAllowance(address spender, uint256 addedValue) external returns (bool) {
+		uint256 temp = _allowances[msg.sender][spender];
+		temp += addedValue;
+		_allowances[msg.sender][spender] = temp;
+		emit Approval(msg.sender, spender, temp);
+		return true;
 	}
 
 	/**
-	 * @dev Hook that is called before any transfer of tokens. This includes
-	 * minting and burning.
+	 * @dev Atomically decreases the allowance granted to `spender` by the caller.
 	 *
-	 * Calling conditions:
+	 * This is an alternative to {approve} that can be used as a mitigation for
+	 * problems described in {IERC20-approve}.
 	 *
-	 * - when `from` and `to` are both non-zero, `amount` of ``from``'s tokens
-	 * will be to transferred to `to`.
-	 * - when `from` is zero, `amount` tokens will be minted for `to`.
-	 * - when `to` is zero, `amount` of ``from``'s tokens will be burned.
-	 * - `from` and `to` are never both zero.
+	 * Emits an {Approval} event indicating the updated allowance.
 	 *
-	 * To learn more about hooks, head to xref:ROOT:extending-contracts.adoc#using-hooks[Using Hooks].
+	 * Requirements:
+	 *
+	 * - `spender` cannot be the zero address.
+	 * - `spender` must have allowance for the caller of at least
+	 * `subtractedValue`.
 	 */
-	function _beforeTokenTransfer(address from, address to, uint256 amount) internal virtual { }
-		/**
+	function decreaseAllowance(address spender, uint256 subtractedValue) external returns (bool) {
+		uint256 temp = _allowances[msg.sender][spender];
+		require(temp >= subtractedValue, "ERC20: decreased allowance below zero");
+		unchecked {
+			temp -= subtractedValue;
+		}
+		_allowances[msg.sender][spender] = temp;
+		emit Approval(msg.sender, spender, temp);
+		return true;
+	}
+	/**
 	 * @dev Destroys `amount` tokens from the caller.
 	 *
 	 * See {ERC20-_burn}.
 	 */
-	function burn(uint256 amount) public virtual {
-		_burn(msg.sender, amount);
+	function burn(uint256 amount) external {
+		uint256 accountBalance = _balances[msg.sender];
+		require(accountBalance >= amount, "ERC20: burn amount exceeds balance");
+		unchecked {
+			_balances[msg.sender] = accountBalance - amount;
+		}
+		_totalSupply -= amount;
+		if(canRecieveDividends(msg.sender)){
+			dividendsRecievingSupply += amount;
+			magnifiedDividendCorrections[msg.sender] -= int256(magnifiedDividendPerShare * amount);
+		}
+		emit Transfer(msg.sender, address(0), amount);
 	}
 
 	/**
@@ -500,13 +413,26 @@ abstract contract DividendPayingERC20 is IERC20, IERC20Metadata, DividendPayingT
 	 * - the caller must have allowance for ``accounts``'s tokens of at least
 	 * `amount`.
 	 */
-	function burnFrom(address account, uint256 amount) public virtual {
-		uint256 currentAllowance = allowance(account, msg.sender);
-		require(currentAllowance >= amount, "ERC20: burn amount exceeds allowance");
+	function burnFrom(address account, uint256 amount) external {
+		uint256 temp = _allowances[account][msg.sender];
+		require(temp >= amount, "ERC20: burn amount exceeds allowance");
 		unchecked {
-			_approve(account, msg.sender, currentAllowance - amount);
+			temp -= _allowances[account][msg.sender];
 		}
-		_burn(account, amount);
+		_allowances[account][msg.sender] = temp;
+		emit Approval(account, msg.sender, temp);
+		require(account != address(0), "ERC20: burn from the zero address");
+		uint256 accountBalance = _balances[account];
+		require(accountBalance >= amount, "ERC20: burn amount exceeds balance");
+		unchecked {
+			_balances[account] = accountBalance - amount;
+		}
+		_totalSupply -= amount;
+		if(canRecieveDividends(account)){
+			dividendsRecievingSupply += amount;
+			magnifiedDividendCorrections[account] -= int256(magnifiedDividendPerShare * amount);
+		}
+		emit Transfer(account, address(0), amount);
 	}
 	
 	//EUBIng-specific stuff
@@ -523,11 +449,10 @@ abstract contract DividendPayingERC20 is IERC20, IERC20Metadata, DividendPayingT
 		//Smart contracts are presumed to refuse dividends unless otherwise stated
 		if(!canRecieveDividends(msg.sender)){
 			dividendsOptIn[msg.sender] = true;
-			magnifiedDividendCorrections[msg.sender] = 0 - int256(magnifiedDividendPerShare * balanceOf(msg.sender));
-			dividendsRecievingSupply += balanceOf(msg.sender);
+			magnifiedDividendCorrections[msg.sender] = 0 - int256(magnifiedDividendPerShare * _balances[msg.sender]);
+			dividendsRecievingSupply += _balances[msg.sender];
 		}
 	}
-	function locked() public virtual returns (uint256);
 	address creator;
 	uint256 public dividendsRecievingSupply;
 	
@@ -566,13 +491,13 @@ abstract contract DividendPayingERC20 is IERC20, IERC20Metadata, DividendPayingT
 	///	 and try to distribute it in the next distribution,
 	///	 but keeping track of such data on-chain costs much more than
 	///	 the saved ether, so we don't do that.
-	function distributeDividends(uint256 amount) public override {
-		uint256 effectiveSupply = dividendsRecievingSupply - balanceOf(msg.sender);
+	function distributeDividends(uint256 amount) external override {
+		uint256 effectiveSupply = dividendsRecievingSupply - _balances[msg.sender];
 		require(effectiveSupply > 0);
 		if (amount > 0) {
 			uint256 magnifiedDividendPerShare1 = magnifiedDividendPerShare;
 			int256 senderMagnifiedDividendCorrections = magnifiedDividendCorrections[msg.sender];
-			uint256 senderBalance = balanceOf(msg.sender);
+			uint256 senderBalance = _balances[msg.sender];
 			senderMagnifiedDividendCorrections += int256(magnifiedDividendPerShare1 * senderBalance);
 			magnifiedDividendPerShare1 += (amount * magnitude) / effectiveSupply;
 			senderMagnifiedDividendCorrections -= int256(magnifiedDividendPerShare1 * senderBalance);
@@ -583,11 +508,22 @@ abstract contract DividendPayingERC20 is IERC20, IERC20Metadata, DividendPayingT
 			emit DividendsDistributed(msg.sender, amount);
 		}
 	}
-
+	
 	/// @notice Withdraws the ether distributed to the sender.
 	/// @dev It emits a `DividendWithdrawn` event if the amount of withdrawn ether is greater than 0.
-	function withdrawDividend() public override {
-		uint256 _withdrawableDividend = withdrawableDividendOf(msg.sender);
+	function withdrawDividendFor(address addr) external {
+		uint256 _withdrawableDividend = (uint256(int256(magnifiedDividendPerShare * _balances[addr]) + magnifiedDividendCorrections[addr]) / magnitude) - withdrawnDividends[addr];
+		if (_withdrawableDividend > 0) {
+			withdrawnDividends[msg.sender] += _withdrawableDividend;
+			emit DividendWithdrawn(msg.sender, _withdrawableDividend);
+			IERC20 usdc = IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
+			require(usdc.transfer(msg.sender, _withdrawableDividend), "EUBIng2: can't transfer USDC!");
+		}
+	}
+	/// @notice Withdraws the ether distributed to the sender.
+	/// @dev It emits a `DividendWithdrawn` event if the amount of withdrawn ether is greater than 0.
+	function withdrawDividend() external override {
+		uint256 _withdrawableDividend = (uint256(int256(magnifiedDividendPerShare * _balances[msg.sender]) + magnifiedDividendCorrections[msg.sender]) / magnitude) - withdrawnDividends[msg.sender];
 		if (_withdrawableDividend > 0) {
 			withdrawnDividends[msg.sender] += _withdrawableDividend;
 			emit DividendWithdrawn(msg.sender, _withdrawableDividend);
@@ -596,8 +532,8 @@ abstract contract DividendPayingERC20 is IERC20, IERC20Metadata, DividendPayingT
 		}
 	}
 	/// withdraw by granting spending approval instead of transferring
-	function withdrawDividendSlim() public {
-		uint256 _withdrawableDividend = withdrawableDividendOf(msg.sender);
+	function withdrawDividendSlim() external {
+		uint256 _withdrawableDividend = (uint256(int256(magnifiedDividendPerShare * _balances[msg.sender]) + magnifiedDividendCorrections[msg.sender]) / magnitude) - withdrawnDividends[msg.sender];
 		if (_withdrawableDividend > 0) {
 			withdrawnDividends[msg.sender] += _withdrawableDividend;
 			emit DividendWithdrawn(msg.sender, _withdrawableDividend);
@@ -609,21 +545,21 @@ abstract contract DividendPayingERC20 is IERC20, IERC20Metadata, DividendPayingT
 	/// @notice View the amount of dividend in wei that an address can withdraw.
 	/// @param _owner The address of a token holder.
 	/// @return The amount of dividend in wei that `_owner` can withdraw.
-	function dividendOf(address _owner) public override view returns(uint256) {
-		return withdrawableDividendOf(_owner);
+	function dividendOf(address _owner) external override view returns(uint256) {
+		return (uint256(int256(magnifiedDividendPerShare * _balances[_owner]) + magnifiedDividendCorrections[_owner]) / magnitude) - withdrawnDividends[_owner];
 	}
 
 	/// @notice View the amount of dividend in wei that an address can withdraw.
 	/// @param _owner The address of a token holder.
 	/// @return The amount of dividend in wei that `_owner` can withdraw.
-	function withdrawableDividendOf(address _owner) public override view returns(uint256) {
-		return accumulativeDividendOf(_owner) - withdrawnDividends[_owner];
+	function withdrawableDividendOf(address _owner) external override view returns(uint256) {
+		return (uint256(int256(magnifiedDividendPerShare * _balances[_owner]) + magnifiedDividendCorrections[_owner]) / magnitude) - withdrawnDividends[_owner];
 	}
 
 	/// @notice View the amount of dividend in wei that an address has withdrawn.
 	/// @param _owner The address of a token holder.
 	/// @return The amount of dividend in wei that `_owner` has withdrawn.
-	function withdrawnDividendOf(address _owner) public override view returns(uint256) {
+	function withdrawnDividendOf(address _owner) external override view returns(uint256) {
 		return withdrawnDividends[_owner];
 	}
 
@@ -633,21 +569,10 @@ abstract contract DividendPayingERC20 is IERC20, IERC20Metadata, DividendPayingT
 	/// = (magnifiedDividendPerShare * balanceOf(_owner) + magnifiedDividendCorrections[_owner]) / magnitude
 	/// @param _owner The address of a token holder.
 	/// @return The amount of dividend in wei that `_owner` has earned in total.
-	function accumulativeDividendOf(address _owner) public override view returns(uint256) {
-		return uint256(int256(magnifiedDividendPerShare * balanceOf(_owner)) + magnifiedDividendCorrections[_owner]) / magnitude;
+	function accumulativeDividendOf(address _owner) external override view returns(uint256) {
+		return uint256(int256(magnifiedDividendPerShare * _balances[_owner]) + magnifiedDividendCorrections[_owner]) / magnitude;
 	}
-}
-
-// File: contracts/DividendPayingToken.sol
-
-pragma solidity ^0.8.4;
-
-// File: contracts/EUBIng2.sol
-
-
-pragma solidity ^0.8.4;
-
-contract EUBIng2 is DividendPayingERC20{
+	
 	bytes32 public DOMAIN_SEPARATOR;
 	function unlocked() public view returns (uint256){
 		//Rouge miner protection
@@ -658,10 +583,11 @@ contract EUBIng2 is DividendPayingERC20{
 			return (((block.timestamp - 1621588559) * 6629909*1e12) / 94608000) + 6629909*1e12;
 		}
 	}
-	function locked() public override view returns (uint256){
+	function locked() public view returns (uint256){
 		return 10000000*1e12 - unlocked();
 	}
 	mapping(address => uint) public nonces;
+	//Used by UniswapV2
 	function permit(address owner, address spender, uint value, uint deadline, uint8 v, bytes32 r, bytes32 s) external {
 		require(deadline >= block.timestamp, 'UniswapV2: EXPIRED');
 		bytes32 digest = keccak256(
@@ -673,7 +599,8 @@ contract EUBIng2 is DividendPayingERC20{
 		);
 		address recoveredAddress = ecrecover(digest, v, r, s);
 		require(recoveredAddress != address(0) && recoveredAddress == owner, 'UniswapV2: INVALID_SIGNATURE');
-		_approve(owner, spender, value);
+		_allowances[owner][spender] = value;
+		emit Approval(owner, spender, value);
 	}
 	constructor(){
 		creator = msg.sender;
@@ -684,12 +611,15 @@ contract EUBIng2 is DividendPayingERC20{
 		DOMAIN_SEPARATOR = keccak256(
 			abi.encode(
 				keccak256('EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)'),
-				keccak256(bytes(name())),
+				keccak256(bytes(_name)),
 				keccak256(bytes('1')),
 				chainId,
 				address(this)
 			)
 		);
-		_mint(msg.sender, 10000000*1e12);
+		_balances[msg.sender] = 10000000*1e12;
+		_totalSupply = 10000000*1e12;
+		dividendsRecievingSupply = 10000000*1e12;
+		emit Transfer(address(0), msg.sender, 10000000*1e12);
 	}
 }
