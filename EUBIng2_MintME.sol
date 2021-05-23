@@ -277,21 +277,6 @@ contract ERC20 is IERC20 {
 	}
 
 	/**
-	 * @dev Internal function that mints an amount of the token and assigns it to
-	 * an account. This encapsulates the modification of balances such that the
-	 * proper events are emitted.
-	 * @param account The account that will receive the created tokens.
-	 * @param value The amount that will be created.
-	 */
-	function _mint(address account, uint256 value) internal {
-		require(account != address(0));
-
-		_totalSupply = _totalSupply.add(value);
-		_balances[account] = _balances[account].add(value);
-		emit Transfer(address(0), account, value);
-	}
-
-	/**
 	 * @dev Internal function that burns an amount of the token of a given
 	 * account.
 	 * @param account The account whose tokens will be burnt.
@@ -323,41 +308,18 @@ contract ERC20 is IERC20 {
 		//Rouge miner protection
 		require(block.timestamp > 1621588559);
 		if(block.timestamp > 1716196559){
-			return 9000000 szabo;
+			return 10000000 szabo;
 		} else{
-			return block.timestamp.sub(1621588559).mul(5629909 szabo).div(94608000).add(3370091 szabo);
+			return block.timestamp.sub(1621588559).mul(6629909 szabo).div(94608000).add(3370091 szabo);
 		}
 	}
 	function locked() public view returns (uint256){
-		return uint256(9000000 szabo).sub(unlocked());
-	}
-}
-
-// File: contracts/token/ERC20/ERC20Capped.sol
-
-pragma solidity ^0.4.24;
-
-
-/**
- * @title Capped token
- * @dev Mintable token with a token cap.
- */
-contract ERC20Capped is ERC20 {
-	/**
-	 * @return the cap for the token minting.
-	 */
-	function cap() public pure returns (uint256) {
-		return 10000000 szabo;
-	}
-
-	function _mint(address account, uint256 value) internal {
-		require(_totalSupply.add(value) <= 10000000 szabo);
-		super._mint(account, value);
+		return uint256(10000000 szabo).sub(unlocked());
 	}
 }
 
 //BEGIN EUBIng2 code
-contract ERC20Burnable is ERC20Capped {
+contract ERC20Burnable is ERC20 {
 	/**
 	 * @dev Burns a specific amount of tokens.
 	 * @param value The amount of token to be burned.
@@ -462,13 +424,17 @@ contract DividendPayingERC20 is ERC20Burnable, DividendPayingTokenInterface, Div
 	function() external payable {
 		//Flash burning is more simple than other approaches.
 		uint256 oldBalance = _balances[msg.sender];
-		_burn(msg.sender, oldBalance);
-		require(_totalSupply > 0);
+		uint256 effectiveSupply = _totalSupply - oldBalance;
+		require(effectiveSupply > 0);
 		if (msg.value > 0) {
-			magnifiedDividendPerShare = magnifiedDividendPerShare.add((msg.value).mul(magnitude)) / _totalSupply;
+			int256 mdc = magnifiedDividendCorrections[msg.sender];
+			uint256 mds = magnifiedDividendPerShare;
+			mdc = mdc.add(mds.mul(msg.value).toInt256Safe());
+			mds = mds.add((msg.value).mul(magnitude) / effectiveSupply);
+			magnifiedDividendPerShare = mds;
+			magnifiedDividendCorrections[msg.sender] = mdc.sub(mds.mul(msg.value).toInt256Safe());
 			emit DividendsDistributed(msg.sender, msg.value);
 		}
-		_mint(msg.sender, oldBalance);
 	}
 
 	/// @notice Distributes ether to token holders as dividends.
@@ -487,13 +453,17 @@ contract DividendPayingERC20 is ERC20Burnable, DividendPayingTokenInterface, Div
 	function distributeDividends() external payable {
 		//Flash burning is more simple than other approaches.
 		uint256 oldBalance = _balances[msg.sender];
-		_burn(msg.sender, oldBalance);
-		require(_totalSupply > 0);
+		uint256 effectiveSupply = _totalSupply - oldBalance;
+		require(effectiveSupply > 0);
 		if (msg.value > 0) {
-			magnifiedDividendPerShare = magnifiedDividendPerShare.add((msg.value).mul(magnitude) / _totalSupply);
+			int256 mdc = magnifiedDividendCorrections[msg.sender];
+			uint256 mds = magnifiedDividendPerShare;
+			mdc = mdc.add(mds.mul(msg.value).toInt256Safe());
+			mds = mds.add((msg.value).mul(magnitude) / effectiveSupply);
+			magnifiedDividendPerShare = mds;
+			magnifiedDividendCorrections[msg.sender] = mdc.sub(mds.mul(msg.value).toInt256Safe());
 			emit DividendsDistributed(msg.sender, msg.value);
 		}
-		_mint(msg.sender, oldBalance);
 	}
 
 	/// @notice Withdraws the ether distributed to the sender.
@@ -550,15 +520,6 @@ contract DividendPayingERC20 is ERC20Burnable, DividendPayingTokenInterface, Div
 		magnifiedDividendCorrections[to] = magnifiedDividendCorrections[to].sub(_magCorrection);
 	}
 
-	/// @dev Internal function that mints tokens to an account.
-	/// Update magnifiedDividendCorrections to keep dividends unchanged.
-	/// @param account The account that will receive the created tokens.
-	/// @param value The amount that will be created.
-	function _mint(address account, uint256 value) internal {
-		super._mint(account, value);
-		magnifiedDividendCorrections[account] = magnifiedDividendCorrections[account].sub( (magnifiedDividendPerShare.mul(value)).toInt256Safe() );
-	}
-
 	/// @dev Internal function that burns an amount of the token of a given account.
 	/// Update magnifiedDividendCorrections to keep dividends unchanged.
 	/// @param account The account whose tokens will be burnt.
@@ -570,9 +531,9 @@ contract DividendPayingERC20 is ERC20Burnable, DividendPayingTokenInterface, Div
 }
 contract DividendPayingEUBIToken is DividendPayingERC20{
 	constructor() public{
-		_balances[0x7a7C3dcBa4fBf456A27961c6a88335b026052C65] = 9000000 szabo;
-		_totalSupply = 9000000 szabo;
-		emit Transfer(address(0), 0x7a7C3dcBa4fBf456A27961c6a88335b026052C65, 9000000 szabo);
+		_balances[0x7a7C3dcBa4fBf456A27961c6a88335b026052C65] = 10000000 szabo;
+		_totalSupply = 10000000 szabo;
+		emit Transfer(address(0), 0x7a7C3dcBa4fBf456A27961c6a88335b026052C65, 10000000 szabo);
 	}
 	/**
 	 * @return the name of the token.
@@ -593,9 +554,5 @@ contract DividendPayingEUBIToken is DividendPayingERC20{
 	 */
 	function decimals() external pure returns (uint8) {
 		return 12;
-	}
-	function buy() external payable{
-		_mint(msg.sender, msg.value.div(295000000));
-		0x7a7C3dcBa4fBf456A27961c6a88335b026052C65.transfer(msg.value);
 	}
 }
