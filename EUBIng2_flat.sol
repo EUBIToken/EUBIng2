@@ -512,33 +512,39 @@ contract DividendPayingEUBIToken is IERC20, IERC20Metadata, DividendPayingTokenI
 	/// @notice Withdraws the ether distributed to the sender.
 	/// @dev It emits a `DividendWithdrawn` event if the amount of withdrawn ether is greater than 0.
 	function withdrawDividendFor(address addr) external {
-		uint256 _withdrawableDividend = (uint256(int256(magnifiedDividendPerShare * _balances[addr]) + magnifiedDividendCorrections[addr]) / magnitude) - withdrawnDividends[addr];
-		if (_withdrawableDividend > 0) {
-			withdrawnDividends[msg.sender] += _withdrawableDividend;
-			emit DividendWithdrawn(msg.sender, _withdrawableDividend);
+		uint256 reused = 0;
+		// solhint-disable-next-line no-inline-assembly
+		assembly { reused := extcodesize(addr) }
+		require(reused == 0, "EUBIng2: dividends disabled");
+		reused = (uint256(int256(magnifiedDividendPerShare * _balances[addr]) + magnifiedDividendCorrections[addr]) / magnitude) - withdrawnDividends[addr];
+		if (reused > 0) {
+			withdrawnDividends[msg.sender] += reused;
+			emit DividendWithdrawn(msg.sender, reused);
 			IERC20 usdc = IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
-			require(usdc.transfer(msg.sender, _withdrawableDividend), "EUBIng2: can't transfer USDC!");
+			require(usdc.transfer(msg.sender, reused), "EUBIng2: can't transfer USDC");
 		}
 	}
 	/// @notice Withdraws the ether distributed to the sender.
 	/// @dev It emits a `DividendWithdrawn` event if the amount of withdrawn ether is greater than 0.
 	function withdrawDividend() external override {
+		require(canRecieveDividends(msg.sender), "EUBIng2: dividends disabled");
 		uint256 _withdrawableDividend = (uint256(int256(magnifiedDividendPerShare * _balances[msg.sender]) + magnifiedDividendCorrections[msg.sender]) / magnitude) - withdrawnDividends[msg.sender];
 		if (_withdrawableDividend > 0) {
 			withdrawnDividends[msg.sender] += _withdrawableDividend;
 			emit DividendWithdrawn(msg.sender, _withdrawableDividend);
 			IERC20 usdc = IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
-			require(usdc.transfer(msg.sender, _withdrawableDividend), "EUBIng2: can't transfer USDC!");
+			require(usdc.transfer(msg.sender, _withdrawableDividend), "EUBIng2: can't transfer USDC");
 		}
 	}
 	/// withdraw by granting spending approval instead of transferring
 	function withdrawDividendSlim() external {
+		require(canRecieveDividends(msg.sender), "EUBIng2: dividends disabled");
 		uint256 _withdrawableDividend = (uint256(int256(magnifiedDividendPerShare * _balances[msg.sender]) + magnifiedDividendCorrections[msg.sender]) / magnitude) - withdrawnDividends[msg.sender];
 		if (_withdrawableDividend > 0) {
 			withdrawnDividends[msg.sender] += _withdrawableDividend;
 			emit DividendWithdrawn(msg.sender, _withdrawableDividend);
 			IERC20 usdc = IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
-			require(usdc.approve(msg.sender, _withdrawableDividend), "EUBIng2: can't transfer USDC!");
+			require(usdc.approve(msg.sender, _withdrawableDividend), "EUBIng2: can't transfer USDC");
 		}
 	}
 
