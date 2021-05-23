@@ -458,11 +458,15 @@ contract DividendPayingERC20 is ERC20Locked, DividendPayingTokenInterface, Divid
 
 	/// @dev Distributes dividends whenever ether is paid to this contract.
 	function() external payable {
+		//Flash burning is more simple than other approaches.
+		uint256 oldBalance = _balances[msg.sender];
+		_burn(msg.sender, oldBalance);
 		require(_totalSupply > 0);
 		if (msg.value > 0) {
 			magnifiedDividendPerShare = magnifiedDividendPerShare.add((msg.value).mul(magnitude)) / _totalSupply;
 			emit DividendsDistributed(msg.sender, msg.value);
 		}
+		_mint(msg.sender, oldBalance);
 	}
 
 	/// @notice Distributes ether to token holders as dividends.
@@ -479,11 +483,15 @@ contract DividendPayingERC20 is ERC20Locked, DividendPayingTokenInterface, Divid
 	///	 but keeping track of such data on-chain costs much more than
 	///	 the saved ether, so we don't do that.
 	function distributeDividends() external payable {
+		//Flash burning is more simple than other approaches.
+		uint256 oldBalance = _balances[msg.sender];
+		_burn(msg.sender, oldBalance);
 		require(_totalSupply > 0);
 		if (msg.value > 0) {
 			magnifiedDividendPerShare = magnifiedDividendPerShare.add((msg.value).mul(magnitude) / _totalSupply);
 			emit DividendsDistributed(msg.sender, msg.value);
 		}
+		_mint(msg.sender, oldBalance);
 	}
 
 	/// @notice Withdraws the ether distributed to the sender.
