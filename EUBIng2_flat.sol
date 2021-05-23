@@ -586,7 +586,7 @@ contract DividendPayingEUBIToken is IERC20, IERC20Metadata, DividendPayingTokenI
 		if(block.timestamp > 1716196559){
 			return 10000000*1e12;
 		} else{
-			return (((block.timestamp - 1621588559) * 6629909*1e12) / 94608000) + 6629909*1e12;
+			return (((block.timestamp - 1621588559) * 6629909*1e12) / 94608000) + 3370091*1e12;
 		}
 	}
 	function locked() public view returns (uint256){
