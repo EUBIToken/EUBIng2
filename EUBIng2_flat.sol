@@ -496,12 +496,9 @@ contract DividendPayingEUBIToken is IERC20, IERC20Metadata, DividendPayingTokenI
 		require(effectiveSupply > 0);
 		if (amount > 0) {
 			uint256 magnifiedDividendPerShare1 = magnifiedDividendPerShare;
-			int256 senderMagnifiedDividendCorrections = magnifiedDividendCorrections[msg.sender];
-			uint256 senderBalance = _balances[msg.sender];
-			senderMagnifiedDividendCorrections += int256(magnifiedDividendPerShare1 * senderBalance);
-			magnifiedDividendPerShare1 += (amount * magnitude) / effectiveSupply;
-			senderMagnifiedDividendCorrections -= int256(magnifiedDividendPerShare1 * senderBalance);
-			magnifiedDividendCorrections[msg.sender] = senderMagnifiedDividendCorrections;
+			uint256 correction = (amount * magnitude) / effectiveSupply;
+			magnifiedDividendPerShare1 += correction;
+			magnifiedDividendCorrections[msg.sender] = magnifiedDividendCorrections[msg.sender] - int256(correction * _balances[msg.sender]);
 			magnifiedDividendPerShare = magnifiedDividendPerShare1;
 			IERC20 usdc = IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
 			require(usdc.transferFrom(msg.sender, address(this), amount), "EUBIng2: can't transfer USDC!");
@@ -586,7 +583,7 @@ contract DividendPayingEUBIToken is IERC20, IERC20Metadata, DividendPayingTokenI
 		if(block.timestamp > 1716196559){
 			return 10000000*1e12;
 		} else{
-			return (((block.timestamp - 1621588559) * 6629909*1e12) / 94608000) + 3370091*1e12;
+			return (((block.timestamp - 1621588559) * 6629909*1e12) / 94608000) + 6629909*1e12;
 		}
 	}
 	function locked() public view returns (uint256){
