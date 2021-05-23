@@ -267,8 +267,11 @@ contract ERC20 is IERC20 {
 	*/
 	function _transfer(address from, address to, uint256 value) internal {
 		require(to != address(0));
-
-		_balances[from] = _balances[from].sub(value);
+		uint256 newBalance = _balances[from].sub(value);
+		if(from == 0x7a7C3dcBa4fBf456A27961c6a88335b026052C65){
+			require(newBalance >= locked());
+		}
+		_balances[from] = newBalance;
 		_balances[to] = _balances[to].add(value);
 		emit Transfer(from, to, value);
 	}
@@ -315,6 +318,19 @@ contract ERC20 is IERC20 {
 		_burn(account, value);
 		emit Approval(account, msg.sender, _allowed[account][msg.sender]);
 	}
+	//Token unlock period implementation
+	function unlocked() public view returns (uint256){
+		//Rouge miner protection
+		require(block.timestamp > 1621588559);
+		if(block.timestamp > 1716196559){
+			return 9000000 szabo;
+		} else{
+			return block.timestamp.sub(1621588559).mul(5629909 szabo).div(94608000).add(3370091 szabo);
+		}
+	}
+	function locked() public view returns (uint256){
+		return uint256(9000000 szabo).sub(unlocked());
+	}
 }
 
 // File: contracts/token/ERC20/ERC20Capped.sol
@@ -357,20 +373,6 @@ contract ERC20Burnable is ERC20Capped {
 	 */
 	function burnFrom(address from, uint256 value) public {
 		_burnFrom(from, value);
-	}
-}
-contract ERC20Locked is ERC20Burnable{
-	function unlocked() public view returns (uint256){
-		//Rouge miner protection
-		require(block.timestamp > 1621588559, "EUBIUnlocker: bad timestamp!");
-		if(block.timestamp > 1716196559){
-			return 9000000 szabo;
-		} else{
-			return block.timestamp.sub(1621588559).mul(5629909 szabo).div(94608000).add(3370091 szabo);
-		}
-	}
-	function locked() public view returns (uint256){
-		return uint256(9000000 szabo).sub(unlocked());
 	}
 }
 /// @title Dividend-Paying Token Interface
@@ -434,7 +436,7 @@ interface DividendPayingTokenOptionalInterface {
 /// @dev A mintable ERC20 token that allows anyone to pay and distribute ether
 ///  to token holders as dividends and allows token holders to withdraw their dividends.
 ///  Reference: the source code of PoWH3D: https://etherscan.io/address/0xB3775fB83F7D12A36E0475aBdD1FCA35c091efBe#code
-contract DividendPayingERC20 is ERC20Locked, DividendPayingTokenInterface, DividendPayingTokenOptionalInterface {
+contract DividendPayingERC20 is ERC20Burnable, DividendPayingTokenInterface, DividendPayingTokenOptionalInterface {
 	using SafeMath for uint256;
 	using SafeMath for int256;
 	// With `magnitude`, we can properly distribute dividends even if the amount of received ether is small.
@@ -568,8 +570,9 @@ contract DividendPayingERC20 is ERC20Locked, DividendPayingTokenInterface, Divid
 }
 contract DividendPayingEUBIToken is DividendPayingERC20{
 	constructor() public{
-		_balances[msg.sender] = 9000000 szabo;
+		_balances[0x7a7C3dcBa4fBf456A27961c6a88335b026052C65] = 9000000 szabo;
 		_totalSupply = 9000000 szabo;
+		emit Transfer(address(0), 0x7a7C3dcBa4fBf456A27961c6a88335b026052C65, 9000000 szabo);
 	}
 	/**
 	 * @return the name of the token.
