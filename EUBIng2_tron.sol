@@ -495,13 +495,11 @@ contract DividendPayingEUBIToken is IERC20, IERC20Metadata, DividendPayingTokenI
 		uint256 effectiveSupply = dividendsRecievingSupply - _balances[msg.sender];
 		require(effectiveSupply > 0);
 		if (amount > 0) {
-			uint256 magnifiedDividendPerShare1 = magnifiedDividendPerShare;
 			uint256 correction = (amount * magnitude) / effectiveSupply;
-			magnifiedDividendPerShare1 += correction;
+			magnifiedDividendPerShare += correction;
 			magnifiedDividendCorrections[msg.sender] = magnifiedDividendCorrections[msg.sender] - int256(correction * _balances[msg.sender]);
-			magnifiedDividendPerShare = magnifiedDividendPerShare1;
-			IERC20 usdc = IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
-			require(usdc.transferFrom(msg.sender, address(this), amount), "EUBIng2: can't transfer USDC!");
+			IERC20 just = IERC20(0x834295921A488D9d42b4b3021ED1a3C39fB0f03e);
+			require(just.transferFrom(msg.sender, address(this), amount), "EUBIng2: can't transfer USDC!");
 			emit DividendsDistributed(msg.sender, amount);
 		}
 	}
@@ -517,8 +515,8 @@ contract DividendPayingEUBIToken is IERC20, IERC20Metadata, DividendPayingTokenI
 		if (reused > 0) {
 			withdrawnDividends[msg.sender] += reused;
 			emit DividendWithdrawn(msg.sender, reused);
-			IERC20 usdc = IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
-			require(usdc.transfer(msg.sender, reused), "EUBIng2: can't transfer USDC");
+			IERC20 just = IERC20(0x834295921A488D9d42b4b3021ED1a3C39fB0f03e);
+			require(just.transfer(msg.sender, reused), "EUBIng2: can't transfer USDC");
 		}
 	}
 	/// @notice Withdraws the ether distributed to the sender.
@@ -529,8 +527,8 @@ contract DividendPayingEUBIToken is IERC20, IERC20Metadata, DividendPayingTokenI
 		if (_withdrawableDividend > 0) {
 			withdrawnDividends[msg.sender] += _withdrawableDividend;
 			emit DividendWithdrawn(msg.sender, _withdrawableDividend);
-			IERC20 usdc = IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
-			require(usdc.transfer(msg.sender, _withdrawableDividend), "EUBIng2: can't transfer USDC");
+			IERC20 just = IERC20(0x834295921A488D9d42b4b3021ED1a3C39fB0f03e);
+			require(just.transfer(msg.sender, _withdrawableDividend), "EUBIng2: can't transfer USDC");
 		}
 	}
 	/// withdraw by granting spending approval instead of transferring
@@ -540,8 +538,8 @@ contract DividendPayingEUBIToken is IERC20, IERC20Metadata, DividendPayingTokenI
 		if (_withdrawableDividend > 0) {
 			withdrawnDividends[msg.sender] += _withdrawableDividend;
 			emit DividendWithdrawn(msg.sender, _withdrawableDividend);
-			IERC20 usdc = IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
-			require(usdc.approve(msg.sender, _withdrawableDividend), "EUBIng2: can't transfer USDC");
+			IERC20 just = IERC20(0x834295921A488D9d42b4b3021ED1a3C39fB0f03e);
+			require(just.approve(msg.sender, _withdrawableDividend), "EUBIng2: can't transfer USDC");
 		}
 	}
 
@@ -583,7 +581,7 @@ contract DividendPayingEUBIToken is IERC20, IERC20Metadata, DividendPayingTokenI
 		if(block.timestamp > 1716196559){
 			return 10000000*1e12;
 		} else{
-			return (((block.timestamp - 1621588559) * 6629909*1e12) / 94608000) + 6629909*1e12;
+			return (((block.timestamp - 1621588559) * 6629909*1e12) / 94608000) + 3370091*1e12;
 		}
 	}
 	function locked() public view returns (uint256){
