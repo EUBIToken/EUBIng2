@@ -253,26 +253,27 @@ contract DividendPayingEUBIToken is IERC20, IERC20Metadata, DividendPayingTokenI
 	 */
 	function transfer(address recipient, uint256 amount) external override returns (bool) {
 		require(recipient != address(0), "ERC20: transfer to the zero address");
-		uint256 senderBalance = _balances[msg.sender];
-		require(senderBalance >= amount, "ERC20: transfer amount exceeds balance");
+		uint256 reusable1 = _balances[msg.sender];
+		require(reusable1 >= amount, "ERC20: transfer amount exceeds balance");
 		unchecked{
-			senderBalance -= amount;
+			reusable1 -= amount;
 		}
 		if(msg.sender == creator){
-			require(senderBalance >= locked(), "EUBIUnlocker: not unlocked");
+			require(reusable1 >= locked(), "EUBIUnlocker: not unlocked");
 		}
-		_balances[msg.sender] = senderBalance;
+		_balances[msg.sender] = reusable1;
 		_balances[recipient] += amount;
-		uint256 dividendsRecievingSupply1 = dividendsRecievingSupply;
+		reusable1 = dividendsRecievingSupply;
+		uint256 reusable2 = magnifiedDividendPerShare;
 		if(canRecieveDividends(msg.sender)){
-			dividendsRecievingSupply1 -= amount;
-			magnifiedDividendCorrections[msg.sender] += int256(magnifiedDividendPerShare * amount);
+			reusable1 -= amount;
+			magnifiedDividendCorrections[msg.sender] += int256(reusable2 * amount);
 		}
 		if(canRecieveDividends(recipient)){
-			dividendsRecievingSupply1 += amount;
-			magnifiedDividendCorrections[recipient] -= int256(magnifiedDividendPerShare * amount);
+			reusable1 += amount;
+			magnifiedDividendCorrections[recipient] -= int256(reusable2 * amount);
 		}
-		dividendsRecievingSupply = dividendsRecievingSupply1;
+		dividendsRecievingSupply = reusable1;
 		emit Transfer(msg.sender, recipient, amount);
 		return true;
 	}
@@ -314,31 +315,32 @@ contract DividendPayingEUBIToken is IERC20, IERC20Metadata, DividendPayingTokenI
 	function transferFrom(address sender, address recipient, uint256 amount) external override returns (bool) {
 		require(sender != address(0), "ERC20: transfer from the zero address");
 		require(recipient != address(0), "ERC20: transfer to the zero address");
-		uint256 reusable = _allowances[sender][msg.sender];
-		require(reusable >= amount, "ERC20: transfer amount exceeds allowance");
+		uint256 reusable1 = _allowances[sender][msg.sender];
+		require(reusable1 >= amount, "ERC20: transfer amount exceeds allowance");
 		unchecked {
-			_allowances[sender][msg.sender] = reusable - amount;
+			_allowances[sender][msg.sender] = reusable1 - amount;
 		}
-		reusable = _balances[sender];
-		require(reusable >= amount, "ERC20: transfer amount exceeds balance");
+		reusable1 = _balances[sender];
+		require(reusable1 >= amount, "ERC20: transfer amount exceeds balance");
 		unchecked{
-			reusable -= amount;
+			reusable1 -= amount;
 		}
 		if(sender == creator){
-			require(reusable >= locked(), "EUBIUnlocker: not unlocked");
+			require(reusable1 >= locked(), "EUBIUnlocker: not unlocked");
 		}
-		_balances[sender] = reusable;
+		_balances[sender] = reusable1;
 		_balances[recipient] += amount;
-		uint256 dividendsRecievingSupply1 = dividendsRecievingSupply;
+		reusable1 = dividendsRecievingSupply;
+		uint256 reusable2 = magnifiedDividendPerShare;
 		if(canRecieveDividends(sender)){
-			dividendsRecievingSupply1 -= amount;
-			magnifiedDividendCorrections[sender] += int256(magnifiedDividendPerShare * amount);
+			reusable2 -= amount;
+			magnifiedDividendCorrections[sender] += int256(reusable2 * amount);
 		}
 		if(canRecieveDividends(recipient)){
-			dividendsRecievingSupply1 += amount;
-			magnifiedDividendCorrections[recipient] -= int256(magnifiedDividendPerShare * amount);
+			reusable2 += amount;
+			magnifiedDividendCorrections[recipient] -= int256(reusable2 * amount);
 		}
-		dividendsRecievingSupply = dividendsRecievingSupply1;
+		dividendsRecievingSupply = reusable2;
 		emit Transfer(sender, recipient, amount);
 		return true;
 	}
@@ -417,18 +419,17 @@ contract DividendPayingEUBIToken is IERC20, IERC20Metadata, DividendPayingTokenI
 	 * `amount`.
 	 */
 	function burnFrom(address account, uint256 amount) external {
-		uint256 temp = _allowances[account][msg.sender];
-		require(temp >= amount, "ERC20: burn amount exceeds allowance");
+		uint256 reusable = _allowances[account][msg.sender];
+		require(reusable >= amount, "ERC20: burn amount exceeds allowance");
 		unchecked {
-			temp -= _allowances[account][msg.sender];
+			reusable -= _allowances[account][msg.sender];
 		}
-		_allowances[account][msg.sender] = temp;
-		emit Approval(account, msg.sender, temp);
+		_allowances[account][msg.sender] = reusable;
 		require(account != address(0), "ERC20: burn from the zero address");
-		uint256 accountBalance = _balances[account];
-		require(accountBalance >= amount, "ERC20: burn amount exceeds balance");
+		reusable = _balances[account];
+		require(reusable >= amount, "ERC20: burn amount exceeds balance");
 		unchecked {
-			_balances[account] = accountBalance - amount;
+			_balances[account] = reusable - amount;
 		}
 		_totalSupply -= amount;
 		if(canRecieveDividends(account)){
