@@ -550,14 +550,22 @@ contract DividendPayingEUBIToken is IERC20, IERC20Metadata, DividendPayingTokenI
 	/// @param _owner The address of a token holder.
 	/// @return The amount of dividend in wei that `_owner` can withdraw.
 	function dividendOf(address _owner) external override view returns(uint256) {
-		return (uint256(int256(magnifiedDividendPerShare * _balances[_owner]) + magnifiedDividendCorrections[_owner]) / magnitude) - withdrawnDividends[_owner];
+		if(canRecieveDividends(_owner)){
+			return (uint256(int256(magnifiedDividendPerShare * _balances[_owner]) + magnifiedDividendCorrections[_owner]) / magnitude) - withdrawnDividends[_owner];
+		} else{
+			return 0;
+		}
 	}
 
 	/// @notice View the amount of dividend in wei that an address can withdraw.
 	/// @param _owner The address of a token holder.
 	/// @return The amount of dividend in wei that `_owner` can withdraw.
 	function withdrawableDividendOf(address _owner) external override view returns(uint256) {
-		return (uint256(int256(magnifiedDividendPerShare * _balances[_owner]) + magnifiedDividendCorrections[_owner]) / magnitude) - withdrawnDividends[_owner];
+		if(canRecieveDividends(_owner)){
+			return (uint256(int256(magnifiedDividendPerShare * _balances[_owner]) + magnifiedDividendCorrections[_owner]) / magnitude) - withdrawnDividends[_owner];
+		} else{
+			return 0;
+		}
 	}
 
 	/// @notice View the amount of dividend in wei that an address has withdrawn.
