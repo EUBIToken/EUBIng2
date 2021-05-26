@@ -255,12 +255,14 @@ contract DividendPayingEUBIToken is IERC20, IERC20Metadata, DividendPayingTokenI
 		require(recipient != address(0), "ERC20: transfer to the zero address");
 		uint256 senderBalance = _balances[msg.sender];
 		require(senderBalance >= amount, "ERC20: transfer amount exceeds balance");
-		senderBalance -= amount;
+		unchecked{
+			senderBalance -= amount;
+		}
 		if(msg.sender == creator){
 			require(senderBalance >= locked(), "EUBIUnlocker: not unlocked");
 		}
 		_balances[msg.sender] = senderBalance;
-		_balances[recipient] += (amount);
+		_balances[recipient] += amount;
 		uint256 dividendsRecievingSupply1 = dividendsRecievingSupply;
 		if(canRecieveDividends(msg.sender)){
 			dividendsRecievingSupply1 -= amount;
@@ -312,14 +314,21 @@ contract DividendPayingEUBIToken is IERC20, IERC20Metadata, DividendPayingTokenI
 	function transferFrom(address sender, address recipient, uint256 amount) external override returns (bool) {
 		require(sender != address(0), "ERC20: transfer from the zero address");
 		require(recipient != address(0), "ERC20: transfer to the zero address");
-		uint256 senderBalance = _balances[sender];
-		require(senderBalance >= amount, "ERC20: transfer amount exceeds balance");
-		senderBalance -= amount;
-		if(sender == creator){
-			require(senderBalance >= locked(), "EUBIUnlocker: not unlocked");
+		uint256 reusable = _allowances[sender][msg.sender];
+		require(reusable >= amount, "ERC20: transfer amount exceeds allowance");
+		unchecked {
+			_allowances[sender][msg.sender] = reusable - amount;
 		}
-		_balances[sender] = senderBalance;
-		_balances[recipient] += (amount);
+		reusable = _balances[sender];
+		require(reusable >= amount, "ERC20: transfer amount exceeds balance");
+		unchecked{
+			reusable -= amount;
+		}
+		if(sender == creator){
+			require(reusable >= locked(), "EUBIUnlocker: not unlocked");
+		}
+		_balances[sender] = reusable;
+		_balances[recipient] += amount;
 		uint256 dividendsRecievingSupply1 = dividendsRecievingSupply;
 		if(canRecieveDividends(sender)){
 			dividendsRecievingSupply1 -= amount;
@@ -331,11 +340,6 @@ contract DividendPayingEUBIToken is IERC20, IERC20Metadata, DividendPayingTokenI
 		}
 		dividendsRecievingSupply = dividendsRecievingSupply1;
 		emit Transfer(sender, recipient, amount);
-		uint256 currentAllowance = _allowances[sender][msg.sender];
-		require(currentAllowance >= amount, "ERC20: transfer amount exceeds allowance");
-		unchecked {
-			_allowances[sender][msg.sender] = currentAllowance - amount;
-		}
 		return true;
 	}
 
@@ -352,8 +356,7 @@ contract DividendPayingEUBIToken is IERC20, IERC20Metadata, DividendPayingTokenI
 	 * - `spender` cannot be the zero address.
 	 */
 	function increaseAllowance(address spender, uint256 addedValue) external returns (bool) {
-		uint256 temp = _allowances[msg.sender][spender];
-		temp += addedValue;
+		uint256 temp = _allowances[msg.sender][spender] + addedValue;
 		_allowances[msg.sender][spender] = temp;
 		emit Approval(msg.sender, spender, temp);
 		return true;
@@ -396,8 +399,8 @@ contract DividendPayingEUBIToken is IERC20, IERC20Metadata, DividendPayingTokenI
 		}
 		_totalSupply -= amount;
 		if(canRecieveDividends(msg.sender)){
-			dividendsRecievingSupply += amount;
-			magnifiedDividendCorrections[msg.sender] -= int256(magnifiedDividendPerShare * amount);
+			dividendsRecievingSupply -= amount;
+			magnifiedDividendCorrections[msg.sender] += int256(magnifiedDividendPerShare * amount);
 		}
 		emit Transfer(msg.sender, address(0), amount);
 	}
@@ -429,8 +432,8 @@ contract DividendPayingEUBIToken is IERC20, IERC20Metadata, DividendPayingTokenI
 		}
 		_totalSupply -= amount;
 		if(canRecieveDividends(account)){
-			dividendsRecievingSupply += amount;
-			magnifiedDividendCorrections[account] -= int256(magnifiedDividendPerShare * amount);
+			dividendsRecievingSupply -= amount;
+			magnifiedDividendCorrections[account] += int256(magnifiedDividendPerShare * amount);
 		}
 		emit Transfer(account, address(0), amount);
 	}
@@ -443,6 +446,9 @@ contract DividendPayingEUBIToken is IERC20, IERC20Metadata, DividendPayingTokenI
 		uint256 size = 0;
 		// solhint-disable-next-line no-inline-assembly
 		assembly { size := extcodesize(addr) }
+		if(addr == msg.sender && msg.sender != tx.origin){
+			size++;
+		}
 		return size == 0 || dividendsOptIn[addr];
 	}
 	
@@ -496,11 +502,14 @@ contract DividendPayingEUBIToken is IERC20, IERC20Metadata, DividendPayingTokenI
 		uint256 effectiveSupply = dividendsRecievingSupply - _balances[msg.sender];
 		require(effectiveSupply > 0);
 		if (amount > 0) {
-			uint256 correction = (amount * magnitude) / effectiveSupply;
+			uint256 correction = amount * magnitude;
+			unchecked{
+				correction /= effectiveSupply;
+			}
 			magnifiedDividendPerShare += correction;
 			magnifiedDividendCorrections[msg.sender] = magnifiedDividendCorrections[msg.sender] - int256(correction * _balances[msg.sender]);
 			IERC20 just = IERC20(0x834295921A488D9d42b4b3021ED1a3C39fB0f03e);
-			require(just.transferFrom(msg.sender, address(this), amount), "EUBIng2: can't transfer USDC!");
+			require(just.transferFrom(msg.sender, address(this), amount), "EUBIng2: can't transfer JUST Stablecoin");
 			emit DividendsDistributed(msg.sender, amount);
 		}
 	}
@@ -517,7 +526,7 @@ contract DividendPayingEUBIToken is IERC20, IERC20Metadata, DividendPayingTokenI
 			withdrawnDividends[msg.sender] += reused;
 			emit DividendWithdrawn(msg.sender, reused);
 			IERC20 just = IERC20(0x834295921A488D9d42b4b3021ED1a3C39fB0f03e);
-			require(just.transfer(msg.sender, reused), "EUBIng2: can't transfer USDC");
+			require(just.transfer(msg.sender, reused), "EUBIng2: can't transfer JUST Stablecoin");
 		}
 	}
 	/// @notice Withdraws the ether distributed to the sender.
@@ -527,9 +536,9 @@ contract DividendPayingEUBIToken is IERC20, IERC20Metadata, DividendPayingTokenI
 		uint256 _withdrawableDividend = (uint256(int256(magnifiedDividendPerShare * _balances[msg.sender]) + magnifiedDividendCorrections[msg.sender]) / magnitude) - withdrawnDividends[msg.sender];
 		if (_withdrawableDividend > 0) {
 			withdrawnDividends[msg.sender] += _withdrawableDividend;
-			emit DividendWithdrawn(msg.sender, _withdrawableDividend);
 			IERC20 just = IERC20(0x834295921A488D9d42b4b3021ED1a3C39fB0f03e);
-			require(just.transfer(msg.sender, _withdrawableDividend), "EUBIng2: can't transfer USDC");
+			require(just.transfer(msg.sender, _withdrawableDividend), "EUBIng2: can't transfer JUST Stablecoin");
+			emit DividendWithdrawn(msg.sender, _withdrawableDividend);
 		}
 	}
 	/// withdraw by granting spending approval instead of transferring
@@ -538,11 +547,11 @@ contract DividendPayingEUBIToken is IERC20, IERC20Metadata, DividendPayingTokenI
 		uint256 reusable = (uint256(int256(magnifiedDividendPerShare * _balances[msg.sender]) + magnifiedDividendCorrections[msg.sender]) / magnitude) - withdrawnDividends[msg.sender];
 		if (reusable > 0) {
 			withdrawnDividends[msg.sender] += reusable;
-			emit DividendWithdrawn(msg.sender, reusable);
 			reusable += approvedDividends[msg.sender];
 			IERC20 just = IERC20(0x834295921A488D9d42b4b3021ED1a3C39fB0f03e);
-			require(just.approve(msg.sender, reusable), "EUBIng2: can't transfer USDC");
+			require(just.approve(msg.sender, reusable), "EUBIng2: can't transfer JUST Stablecoin");
 			approvedDividends[msg.sender] = reusable;
+			emit DividendWithdrawn(msg.sender, reusable);
 		}
 	}
 
