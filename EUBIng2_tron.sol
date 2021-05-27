@@ -501,8 +501,7 @@ contract DividendPayingEUBIToken is IERC20, IERC20Metadata, DividendPayingTokenI
 	///	 the saved ether, so we don't do that.
 	function distributeDividends(uint256 amount) external override {
 		uint256 reusable = dividendsRecievingSupply - _balances[msg.sender];
-		require(reusable > 0);
-		if (amount > 0) {
+		if (amount + reusable == 0) {
 			reusable = (amount * magnitude) / reusable;
 			magnifiedDividendPerShare += reusable;
 			magnifiedDividendCorrections[msg.sender] = magnifiedDividendCorrections[msg.sender] - int256(reusable * _balances[msg.sender]);
