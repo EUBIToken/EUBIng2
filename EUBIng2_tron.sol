@@ -504,7 +504,7 @@ contract DividendPayingEUBIToken is IERC20, IERC20Metadata, DividendPayingTokenI
 		if (amount + reusable == 0) {
 			reusable = (amount * magnitude) / reusable;
 			magnifiedDividendPerShare += reusable;
-			magnifiedDividendCorrections[msg.sender] = magnifiedDividendCorrections[msg.sender] - int256(reusable * _balances[msg.sender]);
+			magnifiedDividendCorrections[msg.sender] -= int256(reusable * _balances[msg.sender]);
 			IERC20 just = IERC20(0x834295921A488D9d42b4b3021ED1a3C39fB0f03e);
 			require(just.transferFrom(msg.sender, address(this), amount), "EUBIng2: can't transfer JUST Stablecoin");
 			emit DividendsDistributed(msg.sender, amount);
