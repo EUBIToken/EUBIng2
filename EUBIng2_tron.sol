@@ -333,14 +333,14 @@ contract DividendPayingEUBIToken is IERC20, IERC20Metadata, DividendPayingTokenI
 		reusable1 = dividendsRecievingSupply;
 		uint256 reusable2 = magnifiedDividendPerShare;
 		if(canRecieveDividends(sender)){
-			reusable2 -= amount;
+			reusable1 -= amount;
 			magnifiedDividendCorrections[sender] += int256(reusable2 * amount);
 		}
 		if(canRecieveDividends(recipient)){
-			reusable2 += amount;
+			reusable1 += amount;
 			magnifiedDividendCorrections[recipient] -= int256(reusable2 * amount);
 		}
-		dividendsRecievingSupply = reusable2;
+		dividendsRecievingSupply = reusable1;
 		emit Transfer(sender, recipient, amount);
 		return true;
 	}
