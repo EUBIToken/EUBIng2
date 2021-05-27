@@ -441,8 +441,7 @@ contract DividendPayingEUBIToken is IERC20, IERC20Metadata, DividendPayingTokenI
 	
 	//EUBIng-specific stuff
 	mapping(address => bool) private dividendsOptIn;
-	mapping(address => uint256) private approvedDividends;
-	
+
 	function canRecieveDividends(address addr) public view returns (bool){
 		uint256 size = 0;
 		// solhint-disable-next-line no-inline-assembly
@@ -484,7 +483,7 @@ contract DividendPayingEUBIToken is IERC20, IERC20Metadata, DividendPayingTokenI
 	// So now `dividendOf(_user)` returns the same value before and after `balanceOf(_user)` is changed.
 	mapping(address => int256) internal magnifiedDividendCorrections;
 	mapping(address => uint256) internal withdrawnDividends;
-	/// @dev Distributes dividends whenever ether is paid to this contract.
+		/// @dev Distributes dividends whenever ether is paid to this contract.
 
 	/// @notice Distributes ether to token holders as dividends.
 	/// @dev It reverts if the total supply of tokens is 0.
@@ -539,6 +538,7 @@ contract DividendPayingEUBIToken is IERC20, IERC20Metadata, DividendPayingTokenI
 		}
 	}
 	/// withdraw by granting spending approval instead of transferring
+	/// used by trusts to save gas when transferring dividends to a beneficiary
 	function withdrawDividendSlim() external {
 		require(canRecieveDividends(msg.sender), "EUBIng2: dividends disabled");
 		uint256 reusable = (uint256(int256(magnifiedDividendPerShare * _balances[msg.sender]) + magnifiedDividendCorrections[msg.sender]) / magnitude) - withdrawnDividends[msg.sender];
