@@ -484,7 +484,7 @@ contract DividendPayingEUBIToken is IERC20, IERC20Metadata, DividendPayingTokenI
 	// So now `dividendOf(_user)` returns the same value before and after `balanceOf(_user)` is changed.
 	mapping(address => int256) internal magnifiedDividendCorrections;
 	mapping(address => uint256) internal withdrawnDividends;
-		/// @dev Distributes dividends whenever ether is paid to this contract.
+	/// @dev Distributes dividends whenever ether is paid to this contract.
 
 	/// @notice Distributes ether to token holders as dividends.
 	/// @dev It reverts if the total supply of tokens is 0.
@@ -500,15 +500,12 @@ contract DividendPayingEUBIToken is IERC20, IERC20Metadata, DividendPayingTokenI
 	///	 but keeping track of such data on-chain costs much more than
 	///	 the saved ether, so we don't do that.
 	function distributeDividends(uint256 amount) external override {
-		uint256 effectiveSupply = dividendsRecievingSupply - _balances[msg.sender];
-		require(effectiveSupply > 0);
+		uint256 reusable = dividendsRecievingSupply - _balances[msg.sender];
+		require(reusable > 0);
 		if (amount > 0) {
-			uint256 correction = amount * magnitude;
-			unchecked{
-				correction /= effectiveSupply;
-			}
-			magnifiedDividendPerShare += correction;
-			magnifiedDividendCorrections[msg.sender] = magnifiedDividendCorrections[msg.sender] - int256(correction * _balances[msg.sender]);
+			reusable = (amount * magnitude) / reusable;
+			magnifiedDividendPerShare += reusable;
+			magnifiedDividendCorrections[msg.sender] = magnifiedDividendCorrections[msg.sender] - int256(reusable * _balances[msg.sender]);
 			IERC20 just = IERC20(0x834295921A488D9d42b4b3021ED1a3C39fB0f03e);
 			require(just.transferFrom(msg.sender, address(this), amount), "EUBIng2: can't transfer JUST Stablecoin");
 			emit DividendsDistributed(msg.sender, amount);
