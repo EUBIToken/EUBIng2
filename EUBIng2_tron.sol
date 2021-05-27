@@ -264,14 +264,14 @@ contract DividendPayingEUBIToken is IERC20, IERC20Metadata, DividendPayingTokenI
 		_balances[msg.sender] = reusable1;
 		_balances[recipient] += amount;
 		reusable1 = dividendsRecievingSupply;
-		uint256 reusable2 = magnifiedDividendPerShare;
+		int256 reusable2 = int256(magnifiedDividendPerShare * amount);
 		if(canRecieveDividends(msg.sender)){
 			reusable1 -= amount;
-			magnifiedDividendCorrections[msg.sender] += int256(reusable2 * amount);
+			magnifiedDividendCorrections[msg.sender] += reusable2;
 		}
 		if(canRecieveDividends(recipient)){
 			reusable1 += amount;
-			magnifiedDividendCorrections[recipient] -= int256(reusable2 * amount);
+			magnifiedDividendCorrections[recipient] -= reusable2;
 		}
 		dividendsRecievingSupply = reusable1;
 		emit Transfer(msg.sender, recipient, amount);
@@ -331,14 +331,14 @@ contract DividendPayingEUBIToken is IERC20, IERC20Metadata, DividendPayingTokenI
 		_balances[sender] = reusable1;
 		_balances[recipient] += amount;
 		reusable1 = dividendsRecievingSupply;
-		uint256 reusable2 = magnifiedDividendPerShare;
+		int256 reusable2 = int256(magnifiedDividendPerShare * amount);
 		if(canRecieveDividends(sender)){
 			reusable1 -= amount;
-			magnifiedDividendCorrections[sender] += int256(reusable2 * amount);
+			magnifiedDividendCorrections[sender] += reusable2;
 		}
 		if(canRecieveDividends(recipient)){
 			reusable1 += amount;
-			magnifiedDividendCorrections[recipient] -= int256(reusable2 * amount);
+			magnifiedDividendCorrections[recipient] -= reusable2;
 		}
 		dividendsRecievingSupply = reusable1;
 		emit Transfer(sender, recipient, amount);
