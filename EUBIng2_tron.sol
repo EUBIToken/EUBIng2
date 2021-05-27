@@ -539,15 +539,14 @@ contract DividendPayingEUBIToken is IERC20, IERC20Metadata, DividendPayingTokenI
 		}
 	}
 	/// withdraw by granting spending approval instead of transferring
+	/// used by trusts to save gas when transferring dividends to a beneficiary
 	function withdrawDividendSlim() external {
 		require(canRecieveDividends(msg.sender), "EUBIng2: dividends disabled");
 		uint256 reusable = (uint256(int256(magnifiedDividendPerShare * _balances[msg.sender]) + magnifiedDividendCorrections[msg.sender]) / magnitude) - withdrawnDividends[msg.sender];
 		if (reusable > 0) {
 			withdrawnDividends[msg.sender] += reusable;
-			reusable += approvedDividends[msg.sender];
 			IERC20 just = IERC20(0x834295921A488D9d42b4b3021ED1a3C39fB0f03e);
-			require(just.approve(msg.sender, reusable), "EUBIng2: can't transfer JUST Stablecoin");
-			approvedDividends[msg.sender] = reusable;
+			require(just.approve(msg.sender, just.allowance(address(this), msg.sender) + reusable), "EUBIng2: can't transfer JUST Stablecoin");
 			emit DividendWithdrawn(msg.sender, reusable);
 		}
 	}
