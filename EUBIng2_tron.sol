@@ -442,14 +442,30 @@ contract DividendPayingEUBIToken is IERC20, IERC20Metadata, DividendPayingTokenI
 	//EUBIng-specific stuff
 	mapping(address => bool) private dividendsOptIn;
 
-	function canRecieveDividends(address addr) public view returns (bool){
+	function canRecieveDividends(address addr) private returns (bool){
 		uint256 size = 0;
 		// solhint-disable-next-line no-inline-assembly
 		assembly { size := extcodesize(addr) }
-		if(addr == msg.sender && msg.sender != tx.origin){
-			size++;
+		if(dividendsOptIn[addr]){
+			return true;
+		} else if(size == 0){
+			dividendsOptIn[addr] = true;
+			return true;
+		} else{
+			return false;
 		}
-		return size == 0 || dividendsOptIn[addr];
+	}
+	function canRecieveDividendsView(address addr) public view returns (bool){
+		uint256 size = 0;
+		// solhint-disable-next-line no-inline-assembly
+		assembly { size := extcodesize(addr) }
+		if(dividendsOptIn[addr]){
+			return true;
+		} else if(size == 0){
+			return true;
+		} else{
+			return false;
+		}
 	}
 	
 	function enableDividends() external{
@@ -554,7 +570,7 @@ contract DividendPayingEUBIToken is IERC20, IERC20Metadata, DividendPayingTokenI
 	/// @param _owner The address of a token holder.
 	/// @return The amount of dividend in wei that `_owner` can withdraw.
 	function dividendOf(address _owner) external override view returns(uint256) {
-		if(canRecieveDividends(_owner)){
+		if(canRecieveDividendsView(_owner)){
 			return (uint256(int256(magnifiedDividendPerShare * _balances[_owner]) + magnifiedDividendCorrections[_owner]) / magnitude) - withdrawnDividends[_owner];
 		} else{
 			return 0;
@@ -565,7 +581,7 @@ contract DividendPayingEUBIToken is IERC20, IERC20Metadata, DividendPayingTokenI
 	/// @param _owner The address of a token holder.
 	/// @return The amount of dividend in wei that `_owner` can withdraw.
 	function withdrawableDividendOf(address _owner) external override view returns(uint256) {
-		if(canRecieveDividends(_owner)){
+		if(canRecieveDividendsView(_owner)){
 			return (uint256(int256(magnifiedDividendPerShare * _balances[_owner]) + magnifiedDividendCorrections[_owner]) / magnitude) - withdrawnDividends[_owner];
 		} else{
 			return 0;
