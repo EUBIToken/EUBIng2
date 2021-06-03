@@ -741,12 +741,11 @@ contract DividendPayingEUBIToken is IERC20, IERC20Metadata, DividendPayingTokenI
 		_balances[msg.sender] = 10000000*1e12;
 		_totalSupply = 10000000*1e12;
 		dividendsRecievingSupply = 10000000*1e12;
-		scalingFactor = 10;
 		emit Transfer(address(0), msg.sender, 10000000*1e12);
 	}
 	
 	//BEGIN TRONZ SHIELD
-	uint256 public scalingFactor; // used when decimals of TRC20 token is too large.
+	uint256 public scalingFactor = 1; // used when decimals of TRC20 token is too large.
 	uint256 public leafCount;
 	uint256 constant INT64_MAX = 2 ** 63 - 1;
 	bytes32 public latestRoot;
@@ -980,11 +979,8 @@ contract DividendPayingEUBIToken is IERC20, IERC20Metadata, DividendPayingTokenI
 		return nodeValue;
 	}
 
-	function rawValueToValue(uint256 rawValue) private view returns (uint64) {
-		require(rawValue > 0);
-		require(rawValue % scalingFactor == 0);
-		uint256 value = rawValue.div(scalingFactor);
-		require(value < INT64_MAX);
-		return uint64(value);
+	function rawValueToValue(uint256 rawValue) private pure returns (uint64) {
+		require(rawValue > 0 && rawValue < INT64_MAX);
+		return uint64(rawValue);
 	}
 }
