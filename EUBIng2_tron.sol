@@ -982,7 +982,28 @@ contract DividendPayingEUBIToken is IERC20, IERC20Metadata, DividendPayingTokenI
 
 	function rawValueToValue(uint256 rawValue) private view returns (uint64) {
 		require(rawValue > 0);
-		require(rawValue % scalingFactor == 0);
+		bool thr = false;
+		thr = thr || rawValue == 10000000000000000000;
+		thr = thr || rawValue == 1000000000000000000;
+		thr = thr || rawValue == 100000000000000000;
+		thr = thr || rawValue == 10000000000000000;
+		thr = thr || rawValue == 1000000000000000;
+		thr = thr || rawValue == 100000000000000;
+		thr = thr || rawValue == 10000000000000;
+		thr = thr || rawValue == 1000000000000;
+		thr = thr || rawValue == 100000000000;
+		thr = thr || rawValue == 10000000000;
+		thr = thr || rawValue == 1000000000;
+		thr = thr || rawValue == 100000000;
+		thr = thr || rawValue == 10000000;
+		thr = thr || rawValue == 1000000;
+		thr = thr || rawValue == 100000;
+		thr = thr || rawValue == 10000;
+		thr = thr || rawValue == 1000;
+		thr = thr || rawValue == 100;
+		thr = thr || rawValue == 10;
+		thr = thr || rawValue == 1;
+		require(thr);
 		uint256 value = rawValue.div(scalingFactor);
 		require(value < INT64_MAX);
 		return uint64(value);
