@@ -1,4 +1,5 @@
 //DO NOT DEPLOY ON ANY BLOCKCHAINS!
+
 // File: contracts/IERC20.sol
 
 //SPDX-License-Identifier: AGPL-3.0-or-later
@@ -357,11 +358,11 @@ contract DividendPayingEUBIToken is IERC20, IERC20Metadata, DividendPayingTokenI
 		reusable1 = dividendsRecievingSupply;
 		int256 reusable2 = magnifiedDividendPerShare.mul(amount).toInt256Safe();
 		if(canRecieveDividends(msg.sender)){
-			reusable1 = reusable1.sub(reusable2);
-			magnifiedDividendCorrections[msg.sender] = magnifiedDividendCorrections[msg.sender].add(reusable2);
+			reusable1 -= amount;
+			magnifiedDividendCorrections[msg.sender] += reusable2;
 		}
 		if(canRecieveDividends(recipient)){
-			reusable1 = reusable1.add(reusable2);
+			reusable1 += amount;
 			magnifiedDividendCorrections[msg.sender] = magnifiedDividendCorrections[msg.sender].sub(reusable2);
 		}
 		dividendsRecievingSupply = reusable1;
@@ -420,11 +421,11 @@ contract DividendPayingEUBIToken is IERC20, IERC20Metadata, DividendPayingTokenI
 		reusable1 = dividendsRecievingSupply;
 		int256 reusable2 = magnifiedDividendPerShare.mul(amount).toInt256Safe();
 		if(canRecieveDividends(sender)){
-			reusable1 = reusable1.sub(reusable2);
-			magnifiedDividendCorrections[sender] = magnifiedDividendCorrections[sender].add(reusable2);
+			reusable1 -= amount;
+			magnifiedDividendCorrections[sender] += reusable2;
 		}
 		if(canRecieveDividends(recipient)){
-			reusable1 = reusable1.add(reusable2);
+			reusable1 += amount;
 			magnifiedDividendCorrections[sender] = magnifiedDividendCorrections[sender].sub(reusable2);
 		}
 		dividendsRecievingSupply = reusable1;
@@ -482,10 +483,10 @@ contract DividendPayingEUBIToken is IERC20, IERC20Metadata, DividendPayingTokenI
 		uint256 accountBalance = _balances[msg.sender];
 		require(accountBalance >= amount, "ERC20: burn amount exceeds balance");
 		_balances[msg.sender] = accountBalance - amount;
-		_totalSupply = _totalSupply.sub(amount);
+		_totalSupply -= amount;
 		if(canRecieveDividends(msg.sender)){
-			dividendsRecievingSupply = dividendsRecievingSupply.sub(amount);
-			magnifiedDividendCorrections[msg.sender] = magnifiedDividendCorrections[msg.sender].add(magnifiedDividendPerShare.mul(amount).toInt256Safe());
+			dividendsRecievingSupply -= amount;
+			magnifiedDividendCorrections[msg.sender] += magnifiedDividendPerShare.mul(amount).toInt256Safe();
 		}
 		emit Transfer(msg.sender, address(0), amount);
 	}
@@ -510,10 +511,10 @@ contract DividendPayingEUBIToken is IERC20, IERC20Metadata, DividendPayingTokenI
 		reusable = _balances[account];
 		require(reusable >= amount, "ERC20: burn amount exceeds balance");
 		_balances[account] = reusable - amount;
-		_totalSupply = _totalSupply.sub(amount);
+		_totalSupply -= amount;
 		if(canRecieveDividends(account)){
-			dividendsRecievingSupply = dividendsRecievingSupply.sub(amount);
-			magnifiedDividendCorrections[account] = magnifiedDividendCorrections[account].add(magnifiedDividendPerShare.mul(amount).toInt256Safe());
+			dividendsRecievingSupply -= amount;
+			magnifiedDividendCorrections[account] += magnifiedDividendPerShare.mul(amount).toInt256Safe();
 		}
 		emit Transfer(account, address(0), amount);
 	}
@@ -551,8 +552,8 @@ contract DividendPayingEUBIToken is IERC20, IERC20Metadata, DividendPayingTokenI
 		//Smart contracts are presumed to refuse dividends unless otherwise stated
 		if(!canRecieveDividends(msg.sender)){
 			dividendsOptIn[msg.sender] = true;
-			magnifiedDividendCorrections[msg.sender] = 0 - magnifiedDividendPerShare.mul(_balances[msg.sender]).toInt256Safe();
-			dividendsRecievingSupply = dividendsRecievingSupply.add(_balances[msg.sender]);
+			magnifiedDividendCorrections[msg.sender] = magnifiedDividendPerShare.mul(_balances[msg.sender]).toInt256Safe().mul(-1);
+			dividendsRecievingSupply += _balances[msg.sender];
 		}
 	}
 	address creator;
@@ -593,31 +594,16 @@ contract DividendPayingEUBIToken is IERC20, IERC20Metadata, DividendPayingTokenI
 	///	 and try to distribute it in the next distribution,
 	///	 but keeping track of such data on-chain costs much more than
 	///	 the saved ether, so we don't do that.
-	function distributeDividends() external payable override {
-		uint256 reusable = dividendsRecievingSupply.sub(_balances[msg.sender]);
+	function distributeDividends() external override payable {
+		uint256 reusable = dividendsRecievingSupply;
+		if(canRecieveDividends(msg.sender)){
+			reusable -= _balances[msg.sender];
+		}
 		if (msg.value != 0 && reusable != 0) {
 			reusable = msg.value.mul(magnitude) / reusable;
 			magnifiedDividendPerShare = magnifiedDividendPerShare.add(reusable);
 			magnifiedDividendCorrections[msg.sender] = magnifiedDividendCorrections[msg.sender].sub(reusable.mul(_balances[msg.sender]).toInt256Safe());
-			IERC20 just = IERC20(0x834295921A488D9d42b4b3021ED1a3C39fB0f03e);
-			require(just.transferFrom(msg.sender, address(this), msg.value), "EUBIng2: can't transfer JUST Stablecoin");
 			emit DividendsDistributed(msg.sender, msg.value);
-		}
-	}
-	
-	/// @notice Withdraws the ether distributed to the sender.
-	/// @dev It emits a `DividendWithdrawn` event if the amount of withdrawn ether is greater than 0.
-	function withdrawDividendFor(address addr) external {
-		uint256 reused = 0;
-		// solhint-disable-next-line no-inline-assembly
-		assembly { reused := extcodesize(addr) }
-		require(reused == 0, "EUBIng2: dividends disabled");
-		reused = magnifiedDividendPerShare.mul(_balances[addr]).add(magnifiedDividendCorrections[addr]).div(magnitude).sub(withdrawnDividends[addr]);
-		if (reused > 0) {
-			withdrawnDividends[addr] = withdrawnDividends[addr].add(reused);
-			assert(payable(address(this)).balance >= reused);
-			payable(addr).transfer(reused);
-			emit DividendWithdrawn(addr, reused);
 		}
 	}
 	/// @notice Withdraws the ether distributed to the sender.
@@ -627,19 +613,7 @@ contract DividendPayingEUBIToken is IERC20, IERC20Metadata, DividendPayingTokenI
 		uint256 _withdrawableDividend = magnifiedDividendPerShare.mul(_balances[msg.sender]).add(magnifiedDividendCorrections[msg.sender]).div(magnitude).sub(withdrawnDividends[msg.sender]);
 		if (_withdrawableDividend > 0) {
 			withdrawnDividends[msg.sender] = withdrawnDividends[msg.sender].add(_withdrawableDividend);
-			assert(payable(address(this)).balance >= _withdrawableDividend);
-			payable(msg.sender).transfer(_withdrawableDividend);
-			emit DividendWithdrawn(msg.sender, _withdrawableDividend);
-		}
-	}
-	/// used by trusts to save gas when transferring dividends to a beneficiary
-	function withdrawDividendTo(address to) external {
-		require(canRecieveDividends(msg.sender), "EUBIng2: dividends disabled");
-		uint256 _withdrawableDividend = magnifiedDividendPerShare.mul(_balances[msg.sender]).add(magnifiedDividendCorrections[msg.sender]).div(magnitude).sub(withdrawnDividends[msg.sender]);
-		if (_withdrawableDividend > 0) {
-			withdrawnDividends[msg.sender] = withdrawnDividends[msg.sender].add(_withdrawableDividend);
-			assert(payable(address(this)).balance >= _withdrawableDividend);
-			payable(to).transfer(_withdrawableDividend);
+			assert(msg.sender.send(_withdrawableDividend));
 			emit DividendWithdrawn(msg.sender, _withdrawableDividend);
 		}
 	}
@@ -711,12 +685,6 @@ contract DividendPayingEUBIToken is IERC20, IERC20Metadata, DividendPayingTokenI
 		require(recoveredAddress != address(0) && recoveredAddress == owner, 'UniswapV2: INVALID_SIGNATURE');
 		_allowances[owner][spender] = value;
 		emit Approval(owner, spender, value);
-	}
-	//HINT TO MythX
-	function selftest2() external{
-		if(dividendsRecievingSupply > _totalSupply){
-			selfdestruct(payable(msg.sender));
-		}
 	}
 	constructor() public{
 		creator = msg.sender;
