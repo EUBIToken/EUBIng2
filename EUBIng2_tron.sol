@@ -551,7 +551,7 @@ contract DividendPayingEUBIToken is IERC20, IERC20Metadata, DividendPayingTokenI
 		//Smart contracts are presumed to refuse dividends unless otherwise stated
 		if(!canRecieveDividends(msg.sender)){
 			dividendsOptIn[msg.sender] = true;
-			magnifiedDividendCorrections[msg.sender] = 0 - magnifiedDividendPerShare.mul(_balances[msg.sender]).toInt256Safe();
+			magnifiedDividendCorrections[msg.sender] = magnifiedDividendPerShare.mul(_balances[msg.sender]).toInt256Safe().mul(-1);
 			dividendsRecievingSupply = dividendsRecievingSupply.add(_balances[msg.sender]);
 		}
 	}
