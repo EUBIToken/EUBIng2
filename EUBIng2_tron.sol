@@ -595,7 +595,7 @@ contract DividendPayingEUBIToken is IERC20, IERC20Metadata, DividendPayingTokenI
 	///	 the saved ether, so we don't do that.
 	function distributeDividends(uint256 amount) external override {
 		uint256 reusable = dividendsRecievingSupply.sub(_balances[msg.sender]);
-		if (amount == 0 && reusable == 0) {
+		if (amount != 0 && reusable != 0) {
 			reusable = amount.mul(magnitude) / reusable;
 			magnifiedDividendPerShare = magnifiedDividendPerShare.add(reusable);
 			magnifiedDividendCorrections[msg.sender] = magnifiedDividendCorrections[msg.sender].sub(reusable.mul(_balances[msg.sender]).toInt256Safe());
