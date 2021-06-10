@@ -48,7 +48,7 @@ contract ERC20NG{
 		uint256 reusable = _allowances[from][msg.sender];
 		if(reusable < amount){
 			return false;
-		} else{
+		} else if(to == address(this)){
 			_allowances[from][msg.sender] = reusable - amount;
 			reusable = _balances[from];
 			if(reusable < amount){
