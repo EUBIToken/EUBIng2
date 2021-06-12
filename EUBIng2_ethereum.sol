@@ -97,13 +97,10 @@ contract ERC20NG{
 	function increaseAllowance(address to, uint256 amount) external returns (bool){
 		uint256 temp = _allowances[msg.sender][to];
 		temp += amount;
-		if(temp < amount){
-			return false;
-		} else{
-			_allowances[msg.sender][to] = temp;
-			emit Approval(msg.sender, to, temp);
-			return true;
-		}
+		require(temp >= amount, "SafeMath: Addition Overflow");
+		_allowances[msg.sender][to] = temp;
+		emit Approval(msg.sender, to, temp);
+		return true;
 	}
 	function decreaseAllowance(address to, uint256 amount) external returns (bool){
 		uint256 temp = _allowances[msg.sender][to];
