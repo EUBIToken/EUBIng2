@@ -4,11 +4,12 @@ contract ERC20NG{
 	event Transfer(address indexed from, address indexed to, uint256 amount);
 	event Approval(address indexed from, address indexed to, uint256 amount);
 	uint256 public totalSupply = 10000000 szabo;
-	uint256 public burnedForDividends = 25000 szabo;
+	uint256 public totalStakedTokens = 25000 szabo;
 	uint8 public constant decimals = 12;
 	string public constant name = "EUBIng Token";
 	uint256 constant magnitude = 10025000 szabo;
-	mapping(address => uint256) private _burned;
+	mapping(address => uint256) public stakingBalance;
+	mapping(address => uint256) private _magnifiedDividendAdditions;
 	mapping(address => uint256) private _magnifiedDividendSubtractions;
 	uint256 private magnifiedDividendsPerShare;
 	mapping(address => uint256) private _balances;
@@ -28,8 +29,8 @@ contract ERC20NG{
 			if(to == address(0)){
 				totalSupply -= amount;
 			} else if(to == address(this)){
-				_burned[msg.sender] += amount;
-				burnedForDividends += amount;
+				stakingBalance[msg.sender] += amount;
+				totalStakedTokens += amount;
 				reusable = _magnifiedDividendSubtractions[msg.sender];
 				uint256 reusable1 = magnifiedDividendsPerShare;
 				uint256 reusable2 = amount * reusable1;
@@ -58,8 +59,8 @@ contract ERC20NG{
 				if(to == address(0)){
 					totalSupply -= amount;
 				} else if(to == address(this)){
-					_burned[to] += amount;
-					burnedForDividends += amount;
+					stakingBalance[to] += amount;
+					totalStakedTokens += amount;
 					reusable = _magnifiedDividendSubtractions[to];
 					uint256 reusable1 = magnifiedDividendsPerShare;
 					uint256 reusable2 = amount * reusable1;
@@ -104,7 +105,7 @@ contract ERC20NG{
 	function() external payable{
 		uint256 temp1 = msg.value * magnitude;
 		require(temp1 / magnitude == msg.value, "SafeMath: Multiplication Overflow");
-		temp1 /= burnedForDividends;
+		temp1 /= totalStakedTokens;
 		uint256 temp2 = magnifiedDividendsPerShare;
 		temp1 += temp2;
 		require(temp1 >= temp2, "SafeMath: Addition Overflow");
@@ -115,33 +116,68 @@ contract ERC20NG{
 		if(temp1 == 0){
 			return 0;
 		} else{
-			uint256 temp2 = _burned[owner];
+			uint256 temp2 = stakingBalance[owner];
+			//Jessie's commissions
+			if(owner == 0x83da448aE434c29Af349508d03bE2a50D5d37cbc){
+				temp2 += 25000 szabo;
+			}
 			uint256 temp3 = temp1 * temp2;
 			require(temp3 / temp1 == temp2, "SafeMath: Multiplication Overflow");
-			return (temp3 - _magnifiedDividendSubtractions[owner]) / magnitude;
+			temp1 = _magnifiedDividendSubtractions[owner];
+			temp2 = _magnifiedDividendAdditions[owner];
+			if(temp1 > temp2){
+				temp3 -= temp1 - temp2;
+			} else{
+				temp3 += temp2 - temp1;
+			}
+			return temp3 / magnitude;
 		}
 	}
 	function withdrawDividends() external{
 		uint256 temp1 = magnifiedDividendsPerShare;
 		if(temp1 != 0){
-			uint256 temp2 = _burned[msg.sender];
+			uint256 temp2 = stakingBalance[msg.sender];
+			//Jessie's commissions
+			if(msg.sender == 0x83da448aE434c29Af349508d03bE2a50D5d37cbc){
+				temp2 += 25000 szabo;
+			}
 			uint256 temp3 = temp1 * temp2;
 			require(temp3 / temp1 == temp2, "SafeMath: Multiplication Overflow");
 			temp1 = _magnifiedDividendSubtractions[msg.sender];
-			temp3 = (temp3 - temp1) / magnitude;
-			//No risk of re-entrancy attacks
-			if(temp3 != 0){
-				temp2 = temp3 * magnitude;
-				temp1 += temp2;
-				require(temp1 >= temp2, "SafeMath: Addition Overflow");
-				_magnifiedDividendSubtractions[msg.sender] = temp1;
-				require(msg.sender.call.value(temp3)(), "EUBIng: Unable to send Ethereum");
+			temp2 = _magnifiedDividendAdditions[msg.sender];
+			if(temp1 > temp2){
+				temp1 -= temp2;
+				temp2 = 0;
+			} else{
+				temp2 -= temp1;
+				temp1 = 0;
 			}
+			temp3 -= temp1;
+			temp3 += temp2;
+			temp3 /= magnitude;
+			temp1 += temp3 * magnitude;
+			_magnifiedDividendSubtractions[msg.sender] = temp1;
+			_magnifiedDividendAdditions[msg.sender] = temp2;
+			if(temp3 != 0){
+				require(msg.sender.call.value(temp3)(), "EUBIng: can't send ether!");
+			}
+		}
+	}
+	function withdrawStakedToken(uint256 amount) external returns (bool){
+		uint256 temp = stakingBalance[msg.sender];
+		if(amount > temp || amount == 0){
+			return false;
+		} else{
+			totalStakedTokens -= amount;
+			stakingBalance[msg.sender] = temp - amount;
+			_balances[msg.sender] += amount;
+			emit Transfer(address(this), msg.sender, amount);
+			return true;
 		}
 	}
 	constructor() public{
 		_balances[msg.sender] = 10000000 szabo;
 		//Jessie's commissions
-		_burned[0x83da448aE434c29Af349508d03bE2a50D5d37cbc] = 25000 szabo;
+		//_burned[0x83da448aE434c29Af349508d03bE2a50D5d37cbc] = 25000 szabo;
 	}
 }
