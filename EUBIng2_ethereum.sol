@@ -9,7 +9,6 @@ contract ERC20NG{
 	string public constant name = "EUBIng Token";
 	uint256 constant magnitude = 10025000 szabo;
 	mapping(address => uint256) public stakingBalance;
-	mapping(address => uint256) private _magnifiedDividendAdditions;
 	mapping(address => int256) private _magnifiedDividendCorrections;
 	uint256 private magnifiedDividendsPerShare;
 	mapping(address => uint256) private _balances;
@@ -30,8 +29,9 @@ contract ERC20NG{
 		return uint256(a);
 	}
 	function safeSub(int256 a, int256 b) private pure returns (int256) {
-		require((b >= 0 && a - b <= a) || (b < 0 && a - b > a), "SafeMath: Subtraction Overflow");
-		return a - b;
+		int256 c = a - b;
+		require((b >= 0 && c <= a) || (b < 0 && c > a), "SafeMath: Subtraction Overflow");
+		return c;
 	}
 
 	function safeAdd(int256 a, int256 b) private pure returns (int256) {
@@ -150,13 +150,10 @@ contract ERC20NG{
 			uint256 temp3 = temp1 * temp2;
 			require(temp3 / temp1 == temp2, "SafeMath: Multiplication Overflow");
 			int256 temp4 = _magnifiedDividendCorrections[msg.sender];
-			temp3 = toUint256Safe(toInt256Safe(temp3) + temp4) / magnitude;
-			_magnifiedDividendCorrections[msg.sender] = safeSub(temp4, toInt256Safe(temp3 * magnitude));
-			if(msg.sender.call.value(temp3)()){
+			temp3 = toUint256Safe(safeAdd(toInt256Safe(temp3), temp4)) / magnitude;
+			if(msg.sender.send(temp3)){
+				_magnifiedDividendCorrections[msg.sender] = safeSub(temp4, toInt256Safe(temp3 * magnitude));
 				emit DividendWithdrawn(msg.sender, temp3);
-			} else{
-				//Soft revert transaction if unable to send
-				_magnifiedDividendCorrections[msg.sender] = temp4;
 			}
 		}
 	}
