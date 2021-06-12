@@ -10,7 +10,7 @@ contract ERC20NG{
 	uint256 constant magnitude = 10025000 szabo;
 	mapping(address => uint256) public stakingBalance;
 	mapping(address => uint256) private _magnifiedDividendAdditions;
-	mapping(address => uint256) private _magnifiedDividendSubtractions;
+	mapping(address => int256) private _magnifiedDividendCorrections;
 	uint256 private magnifiedDividendsPerShare;
 	mapping(address => uint256) private _balances;
 	mapping(address => mapping(address => uint256)) private _allowances;
@@ -19,6 +19,25 @@ contract ERC20NG{
 	}
 	function allowance(address owner, address spender) external view returns (uint256){
 		return _allowances[owner][spender];
+	}
+	function toInt256Safe(uint256 a) private pure returns (int256) {
+		int256 b = int256(a);
+		require(b >= 0, "SafeCast: Cast Overflow");
+		return b;
+	}
+	function toUint256Safe(int256 a) private pure returns (uint256) {
+		require(a >= 0);
+		return uint256(a);
+	}
+	function safeSub(int256 a, int256 b) private pure returns (int256) {
+		require((b >= 0 && a - b <= a) || (b < 0 && a - b > a), "SafeMath: Subtraction Overflow");
+		return a - b;
+	}
+
+	function safeAdd(int256 a, int256 b) private pure returns (int256) {
+		int256 c = a + b;
+		require((b >= 0 && c >= a) || (b < 0 && c < a), "SafeMath: Addition Overflow");
+		return c;
 	}
 	function transfer(address to, uint256 amount) external returns (bool){
 		uint256 reusable = _balances[msg.sender];
@@ -31,13 +50,10 @@ contract ERC20NG{
 			} else if(to == address(this)){
 				stakingBalance[msg.sender] += amount;
 				totalStakedTokens += amount;
-				reusable = _magnifiedDividendSubtractions[msg.sender];
 				uint256 reusable1 = magnifiedDividendsPerShare;
 				uint256 reusable2 = amount * reusable1;
 				require(reusable2 / amount == reusable1, "SafeMath: Multiplication Overflow");
-				reusable2 += reusable;
-				require(reusable2 >= reusable2, "SafeMath: Addition Overflow");
-				_magnifiedDividendSubtractions[msg.sender] = reusable2;
+				_magnifiedDividendCorrections[msg.sender] = safeSub(_magnifiedDividendCorrections[msg.sender], toInt256Safe(reusable2));
 			} else{
 				_balances[to] += amount;
 			}
@@ -54,20 +70,17 @@ contract ERC20NG{
 			reusable = _balances[from];
 			if(reusable < amount){
 				return false;
-			} else{
+			} else if(amount != 0){
 				_balances[from] = reusable - amount;
 				if(to == address(0)){
 					totalSupply -= amount;
 				} else if(to == address(this)){
-					stakingBalance[to] += amount;
+					stakingBalance[from] += amount;
 					totalStakedTokens += amount;
-					reusable = _magnifiedDividendSubtractions[to];
 					uint256 reusable1 = magnifiedDividendsPerShare;
 					uint256 reusable2 = amount * reusable1;
 					require(reusable2 / amount == reusable1, "SafeMath: Multiplication Overflow");
-					reusable2 += reusable;
-					require(reusable2 >= reusable, "SafeMath: Addition Overflow");
-					_magnifiedDividendSubtractions[to] = reusable2;
+					_magnifiedDividendCorrections[from] = safeSub(_magnifiedDividendCorrections[from], toInt256Safe(reusable2));
 				} else{
 					_balances[to] += amount;
 				}
@@ -102,6 +115,8 @@ contract ERC20NG{
 			return true;
 		}
 	}
+	event DividendsDistributed(address indexed from, uint256 weiAmount);
+	event DividendWithdrawn(address indexed from, uint256 weiAmount);
 	function() external payable{
 		uint256 temp1 = msg.value * magnitude;
 		require(temp1 / magnitude == msg.value, "SafeMath: Multiplication Overflow");
@@ -110,6 +125,7 @@ contract ERC20NG{
 		temp1 += temp2;
 		require(temp1 >= temp2, "SafeMath: Addition Overflow");
 		magnifiedDividendsPerShare = temp1;
+		emit DividendsDistributed(msg.sender, msg.value);
 	}
 	function dividendOf(address owner) external view returns (uint256){
 		uint256 temp1 = magnifiedDividendsPerShare;
@@ -123,17 +139,10 @@ contract ERC20NG{
 			}
 			uint256 temp3 = temp1 * temp2;
 			require(temp3 / temp1 == temp2, "SafeMath: Multiplication Overflow");
-			temp1 = _magnifiedDividendSubtractions[owner];
-			temp2 = _magnifiedDividendAdditions[owner];
-			if(temp1 > temp2){
-				temp3 -= temp1 - temp2;
-			} else{
-				temp3 += temp2 - temp1;
-			}
-			return temp3 / magnitude;
+			return toUint256Safe(toInt256Safe(temp3) + _magnifiedDividendCorrections[owner]) / magnitude;
 		}
 	}
-	function withdrawDividends() external{
+	function withdrawDividend() external{
 		uint256 temp1 = magnifiedDividendsPerShare;
 		if(temp1 != 0){
 			uint256 temp2 = stakingBalance[msg.sender];
@@ -143,34 +152,29 @@ contract ERC20NG{
 			}
 			uint256 temp3 = temp1 * temp2;
 			require(temp3 / temp1 == temp2, "SafeMath: Multiplication Overflow");
-			temp1 = _magnifiedDividendSubtractions[msg.sender];
-			temp2 = _magnifiedDividendAdditions[msg.sender];
-			if(temp1 > temp2){
-				temp1 -= temp2;
-				temp2 = 0;
+			int256 temp4 = _magnifiedDividendCorrections[msg.sender];
+			temp3 = toUint256Safe(toInt256Safe(temp3) + temp4) / magnitude;
+			_magnifiedDividendCorrections[msg.sender] = safeSub(temp4, toInt256Safe(temp3 * magnitude));
+			if(msg.sender.call.value(temp3)()){
+				emit DividendWithdrawn(msg.sender, temp3);
 			} else{
-				temp2 -= temp1;
-				temp1 = 0;
-			}
-			temp3 -= temp1;
-			temp3 += temp2;
-			temp3 /= magnitude;
-			temp1 += temp3 * magnitude;
-			_magnifiedDividendSubtractions[msg.sender] = temp1;
-			_magnifiedDividendAdditions[msg.sender] = temp2;
-			if(temp3 != 0){
-				require(msg.sender.call.value(temp3)(), "EUBIng: can't send ether!");
+				//Soft revert transaction if unable to send
+				_magnifiedDividendCorrections[msg.sender] = temp4;
 			}
 		}
 	}
 	function withdrawStakedToken(uint256 amount) external returns (bool){
-		uint256 temp = stakingBalance[msg.sender];
-		if(amount > temp || amount == 0){
+		uint256 reusable1 = stakingBalance[msg.sender];
+		if(amount > reusable1 || amount == 0){
 			return false;
 		} else{
 			totalStakedTokens -= amount;
-			stakingBalance[msg.sender] = temp - amount;
+			stakingBalance[msg.sender] = reusable1 - amount;
 			_balances[msg.sender] += amount;
+			reusable1 = magnifiedDividendsPerShare;
+			uint256 reusable2 = amount * reusable1;
+			require(reusable2 / amount == reusable1, "SafeMath: Multiplication Overflow");
+			_magnifiedDividendCorrections[msg.sender] = safeAdd(_magnifiedDividendCorrections[msg.sender], toInt256Safe(reusable2));
 			emit Transfer(address(this), msg.sender, amount);
 			return true;
 		}
