@@ -124,6 +124,18 @@ contract ERC20NG{
 		magnifiedDividendsPerShare = temp1;
 		emit DividendsDistributed(msg.sender, msg.value);
 	}
+	function SafeDistributeDividends(uint256 maxStakedTokens) external payable{
+		uint256 cachedStakedTokens = totalStakedTokens;
+		require(maxStakedTokens <= cachedStakedTokens, "EUBIng frontrunning protection have rejected this transaction!");
+		uint256 temp1 = msg.value * magnitude;
+		require(temp1 / magnitude == msg.value, "SafeMath: Multiplication Overflow");
+		temp1 /= cachedStakedTokens;
+		uint256 temp2 = magnifiedDividendsPerShare;
+		temp1 += temp2;
+		require(temp1 >= temp2, "SafeMath: Addition Overflow");
+		magnifiedDividendsPerShare = temp1;
+		emit DividendsDistributed(msg.sender, msg.value);
+	}
 	function dividendOf(address owner) external view returns (uint256){
 		uint256 temp1 = magnifiedDividendsPerShare;
 		if(temp1 == 0){
@@ -151,9 +163,11 @@ contract ERC20NG{
 			require(temp3 / temp1 == temp2, "SafeMath: Multiplication Overflow");
 			int256 temp4 = _magnifiedDividendCorrections[msg.sender];
 			temp3 = toUint256Safe(safeAdd(toInt256Safe(temp3), temp4)) / magnitude;
-			if(msg.sender.send(temp3)){
-				_magnifiedDividendCorrections[msg.sender] = safeSub(temp4, toInt256Safe(temp3 * magnitude));
+			_magnifiedDividendCorrections[msg.sender] = safeSub(temp4, toInt256Safe(temp3 * magnitude));
+			if(msg.sender.call.value(temp3)()){
 				emit DividendWithdrawn(msg.sender, temp3);
+			} else{
+				revert("EUBIng: can't send ether");
 			}
 		}
 	}
@@ -166,6 +180,22 @@ contract ERC20NG{
 			stakingBalance[msg.sender] = reusable1 - amount;
 			_balances[msg.sender] += amount;
 			reusable1 = magnifiedDividendsPerShare;
+			uint256 reusable2 = amount * reusable1;
+			require(reusable2 / amount == reusable1, "SafeMath: Multiplication Overflow");
+			_magnifiedDividendCorrections[msg.sender] = safeAdd(_magnifiedDividendCorrections[msg.sender], toInt256Safe(reusable2));
+			emit Transfer(address(this), msg.sender, amount);
+			return true;
+		}
+	}
+	function withdrawAllStakedTokens() external returns (bool){
+		uint256 amount = stakingBalance[msg.sender];
+		if(amount == 0){
+			return false;
+		} else{
+			totalStakedTokens -= amount;
+			stakingBalance[msg.sender] = 0;
+			_balances[msg.sender] += amount;
+			uint256 reusable1 = magnifiedDividendsPerShare;
 			uint256 reusable2 = amount * reusable1;
 			require(reusable2 / amount == reusable1, "SafeMath: Multiplication Overflow");
 			_magnifiedDividendCorrections[msg.sender] = safeAdd(_magnifiedDividendCorrections[msg.sender], toInt256Safe(reusable2));
