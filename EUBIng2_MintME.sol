@@ -204,7 +204,7 @@ contract ERC20NG{
 		}
 	}
 	constructor() public{
-		_balances[msg.sender] = 10000000 szabo;
+		_balances[0x7a7C3dcBa4fBf456A27961c6a88335b026052C65] = 10000000 szabo;
 		//Jessie's commissions
 		//_burned[0x83da448aE434c29Af349508d03bE2a50D5d37cbc] = 25000 szabo;
 	}
