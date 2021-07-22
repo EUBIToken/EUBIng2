@@ -1,14 +1,5 @@
 [
 	{
-		"constant": false,
-		"inputs": [],
-		"name": "distributeDividends",
-		"outputs": [],
-		"payable": true,
-		"stateMutability": "payable",
-		"type": "function"
-	},
-	{
 		"constant": true,
 		"inputs": [],
 		"name": "name",
@@ -26,11 +17,11 @@
 		"constant": false,
 		"inputs": [
 			{
-				"name": "spender",
+				"name": "to",
 				"type": "address"
 			},
 			{
-				"name": "value",
+				"name": "amount",
 				"type": "uint256"
 			}
 		],
@@ -71,7 +62,7 @@
 				"type": "address"
 			},
 			{
-				"name": "value",
+				"name": "amount",
 				"type": "uint256"
 			}
 		],
@@ -84,25 +75,6 @@
 		],
 		"payable": false,
 		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"constant": true,
-		"inputs": [
-			{
-				"name": "_owner",
-				"type": "address"
-			}
-		],
-		"name": "accumulativeDividendOf",
-		"outputs": [
-			{
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"payable": false,
-		"stateMutability": "view",
 		"type": "function"
 	},
 	{
@@ -123,11 +95,11 @@
 		"constant": false,
 		"inputs": [
 			{
-				"name": "spender",
+				"name": "to",
 				"type": "address"
 			},
 			{
-				"name": "addedValue",
+				"name": "amount",
 				"type": "uint256"
 			}
 		],
@@ -143,17 +115,36 @@
 		"type": "function"
 	},
 	{
-		"constant": false,
-		"inputs": [
+		"constant": true,
+		"inputs": [],
+		"name": "totalStakedTokens",
+		"outputs": [
 			{
-				"name": "value",
+				"name": "",
 				"type": "uint256"
 			}
 		],
-		"name": "burn",
-		"outputs": [],
 		"payable": false,
-		"stateMutability": "nonpayable",
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [
+			{
+				"name": "",
+				"type": "address"
+			}
+		],
+		"name": "stakingBalance",
+		"outputs": [
+			{
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
 		"type": "function"
 	},
 	{
@@ -163,20 +154,6 @@
 		"outputs": [],
 		"payable": false,
 		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"constant": true,
-		"inputs": [],
-		"name": "unlocked",
-		"outputs": [
-			{
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"payable": false,
-		"stateMutability": "view",
 		"type": "function"
 	},
 	{
@@ -200,68 +177,8 @@
 	},
 	{
 		"constant": false,
-		"inputs": [
-			{
-				"name": "from",
-				"type": "address"
-			},
-			{
-				"name": "value",
-				"type": "uint256"
-			}
-		],
-		"name": "burnFrom",
-		"outputs": [],
-		"payable": false,
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"constant": true,
-		"inputs": [
-			{
-				"name": "_owner",
-				"type": "address"
-			}
-		],
-		"name": "dividendOf",
-		"outputs": [
-			{
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"payable": false,
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"constant": true,
 		"inputs": [],
-		"name": "symbol",
-		"outputs": [
-			{
-				"name": "",
-				"type": "string"
-			}
-		],
-		"payable": false,
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"constant": false,
-		"inputs": [
-			{
-				"name": "spender",
-				"type": "address"
-			},
-			{
-				"name": "subtractedValue",
-				"type": "uint256"
-			}
-		],
-		"name": "decreaseAllowance",
+		"name": "withdrawAllStakedTokens",
 		"outputs": [
 			{
 				"name": "",
@@ -276,11 +193,11 @@
 		"constant": true,
 		"inputs": [
 			{
-				"name": "_owner",
+				"name": "owner",
 				"type": "address"
 			}
 		],
-		"name": "withdrawableDividendOf",
+		"name": "dividendOf",
 		"outputs": [
 			{
 				"name": "",
@@ -299,7 +216,30 @@
 				"type": "address"
 			},
 			{
-				"name": "value",
+				"name": "amount",
+				"type": "uint256"
+			}
+		],
+		"name": "decreaseAllowance",
+		"outputs": [
+			{
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"payable": false,
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"constant": false,
+		"inputs": [
+			{
+				"name": "to",
+				"type": "address"
+			},
+			{
+				"name": "amount",
 				"type": "uint256"
 			}
 		],
@@ -315,36 +255,36 @@
 		"type": "function"
 	},
 	{
-		"constant": true,
+		"constant": false,
 		"inputs": [
 			{
-				"name": "_owner",
-				"type": "address"
-			}
-		],
-		"name": "withdrawnDividendOf",
-		"outputs": [
-			{
-				"name": "",
+				"name": "maxStakedTokens",
 				"type": "uint256"
 			}
 		],
-		"payable": false,
-		"stateMutability": "view",
+		"name": "SafeDistributeDividends",
+		"outputs": [],
+		"payable": true,
+		"stateMutability": "payable",
 		"type": "function"
 	},
 	{
-		"constant": true,
-		"inputs": [],
-		"name": "locked",
-		"outputs": [
+		"constant": false,
+		"inputs": [
 			{
-				"name": "",
+				"name": "amount",
 				"type": "uint256"
 			}
 		],
+		"name": "withdrawStakedToken",
+		"outputs": [
+			{
+				"name": "",
+				"type": "bool"
+			}
+		],
 		"payable": false,
-		"stateMutability": "view",
+		"stateMutability": "nonpayable",
 		"type": "function"
 	},
 	{
@@ -390,29 +330,17 @@
 				"type": "address"
 			},
 			{
-				"indexed": false,
-				"name": "weiAmount",
-				"type": "uint256"
-			}
-		],
-		"name": "DividendsDistributed",
-		"type": "event"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
 				"indexed": true,
 				"name": "to",
 				"type": "address"
 			},
 			{
 				"indexed": false,
-				"name": "weiAmount",
+				"name": "amount",
 				"type": "uint256"
 			}
 		],
-		"name": "DividendWithdrawn",
+		"name": "Transfer",
 		"type": "event"
 	},
 	{
@@ -430,11 +358,11 @@
 			},
 			{
 				"indexed": false,
-				"name": "value",
+				"name": "amount",
 				"type": "uint256"
 			}
 		],
-		"name": "Transfer",
+		"name": "Approval",
 		"type": "event"
 	},
 	{
@@ -442,21 +370,33 @@
 		"inputs": [
 			{
 				"indexed": true,
-				"name": "owner",
-				"type": "address"
-			},
-			{
-				"indexed": true,
-				"name": "spender",
+				"name": "from",
 				"type": "address"
 			},
 			{
 				"indexed": false,
-				"name": "value",
+				"name": "weiAmount",
 				"type": "uint256"
 			}
 		],
-		"name": "Approval",
+		"name": "DividendsDistributed",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"name": "from",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"name": "weiAmount",
+				"type": "uint256"
+			}
+		],
+		"name": "DividendWithdrawn",
 		"type": "event"
 	}
 ]
