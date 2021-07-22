@@ -1,6 +1,20 @@
 # EUBIng tutorial for MintME and Ethereum version
 
-## Smart Contract Access
+## Quick navigation links
+
+[Smart contract access](https://github.com/EUBIToken/EUBIng2/blob/main/tutorial_mintme_and_eth.md#smart-contract-access)
+
+[Token staking](https://github.com/EUBIToken/EUBIng2/blob/main/tutorial_mintme_and_eth.md#token-staking)
+
+[Unsafe dividends distribution](https://github.com/EUBIToken/EUBIng2/blob/main/tutorial_mintme_and_eth.md#unsafe-dividends-distribution)
+
+[Safe dividends distribution](https://github.com/EUBIToken/EUBIng2/blob/main/tutorial_mintme_and_eth.md#safe-dividends-distribution)
+
+[Dividend withdrawal](https://github.com/EUBIToken/EUBIng2/blob/main/tutorial_mintme_and_eth.md#dividend-withdrawal)
+
+[Token unstaking](https://github.com/EUBIToken/EUBIng2/blob/main/tutorial_mintme_and_eth.md#token-unstaking)
+
+## Smart contract access
 
 MintME: 0x33270088997751267fe218f8251fec52512a8689
 
