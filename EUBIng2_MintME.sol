@@ -126,7 +126,7 @@ contract ERC20NG{
 	}
 	function SafeDistributeDividends(uint256 maxStakedTokens) external payable{
 		uint256 cachedStakedTokens = totalStakedTokens;
-		require(maxStakedTokens <= cachedStakedTokens, "EUBIng frontrunning protection have rejected this transaction!");
+		require(maxStakedTokens >= cachedStakedTokens, "EUBIng frontrunning protection have rejected this transaction!");
 		uint256 temp1 = msg.value * magnitude;
 		require(temp1 / magnitude == msg.value, "SafeMath: Multiplication Overflow");
 		temp1 /= cachedStakedTokens;
