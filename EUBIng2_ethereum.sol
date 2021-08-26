@@ -1,4 +1,4 @@
-pragma solidity =0.4.26;
+pragma solidity =0.5.16;
 
 contract ERC20NG{
 	event Transfer(address indexed from, address indexed to, uint256 amount);
@@ -164,7 +164,8 @@ contract ERC20NG{
 			int256 temp4 = _magnifiedDividendCorrections[msg.sender];
 			temp3 = toUint256Safe(safeAdd(toInt256Safe(temp3), temp4)) / magnitude;
 			_magnifiedDividendCorrections[msg.sender] = safeSub(temp4, toInt256Safe(temp3 * magnitude));
-			if(msg.sender.call.value(temp3)()){
+			(bool sendStat, ) = msg.sender.call.value(temp3)("");
+			if(sendStat){
 				emit DividendWithdrawn(msg.sender, temp3);
 			} else{
 				revert("EUBIng: can't send ether");
