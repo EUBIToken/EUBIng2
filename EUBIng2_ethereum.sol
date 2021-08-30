@@ -47,7 +47,7 @@ contract ERC20NG{
 			_balances[msg.sender] = reusable - amount;
 			if(to == address(0)){
 				totalSupply -= amount;
-			} else if(to == address(this)){
+			} else if(to == 0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF){
 				stakingBalance[msg.sender] += amount;
 				totalStakedTokens += amount;
 				uint256 reusable1 = magnifiedDividendsPerShare;
@@ -74,7 +74,7 @@ contract ERC20NG{
 				_balances[from] = reusable - amount;
 				if(to == address(0)){
 					totalSupply -= amount;
-				} else if(to == address(this)){
+				} else if(to == 0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF){
 					stakingBalance[from] += amount;
 					totalStakedTokens += amount;
 					uint256 reusable1 = magnifiedDividendsPerShare;
@@ -184,7 +184,7 @@ contract ERC20NG{
 			uint256 reusable2 = amount * reusable1;
 			require(reusable2 / amount == reusable1, "SafeMath: Multiplication Overflow");
 			_magnifiedDividendCorrections[msg.sender] = safeAdd(_magnifiedDividendCorrections[msg.sender], toInt256Safe(reusable2));
-			emit Transfer(address(this), msg.sender, amount);
+			emit Transfer(0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF, msg.sender, amount);
 			return true;
 		}
 	}
@@ -200,7 +200,7 @@ contract ERC20NG{
 			uint256 reusable2 = amount * reusable1;
 			require(reusable2 / amount == reusable1, "SafeMath: Multiplication Overflow");
 			_magnifiedDividendCorrections[msg.sender] = safeAdd(_magnifiedDividendCorrections[msg.sender], toInt256Safe(reusable2));
-			emit Transfer(address(this), msg.sender, amount);
+			emit Transfer(0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF, msg.sender, amount);
 			return true;
 		}
 	}
