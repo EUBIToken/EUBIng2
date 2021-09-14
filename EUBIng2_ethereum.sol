@@ -488,6 +488,7 @@ contract DividendsPayingFlashMintableEUBIToken is ERC20{
 	}
 	event StakedForDividends(address indexed target, uint256 indexed amount);
 	event BurnedForDividends(address indexed target, uint256 indexed amount);
+	event DividendsWithdrawn(address indexed target, uint256 indexed amount);
 	event Unstaked(address indexed target, uint256 indexed amount);
 	function _addDividendPoints(address target, uint256 amount) private{
 		int256 amount2 = (_magnifiedDividendsPerPoint() * amount).toInt256();
@@ -556,6 +557,7 @@ contract DividendsPayingFlashMintableEUBIToken is ERC20{
 		} else{
 			require(status, string(ret));
 		}
+		emit DividendsWithdrawn(addr, amount);
 	}
 	function flashMint(address to, uint256 value, bytes memory data) external{
 		_mint(to, value);
